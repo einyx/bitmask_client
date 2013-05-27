@@ -1,7 +1,10 @@
 nose
 nose-exclude
 nose-progressive
-mock
+
+# re-add after removing from main requirements
+# mock
+
 unittest2  # TODO we should include this dep only for python2.6
 coverage
 pep8==1.1
