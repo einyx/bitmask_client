@@ -74,7 +74,7 @@ fi
 # If alltests flag is not set, let's exclude some dirs that are troublesome.
 if [ $alltests -eq 0 ]; then
   echo "[+] Running ALL tests..."
-    noseopts="$noseopts --exclude-dir=leap/soledad"
+  #noseopts="$noseopts --exclude-dir=leap/soledad"
 fi
 
 # If progressive flag enabled, run with this nice plugin :)
@@ -103,7 +103,7 @@ function run_pep8 {
 # in the current debhelper build process,
 # so I exclude the topmost tests
 
-NOSETESTS="nosetests leap --first-package-wins --exclude=leap.soledad.* $noseopts $noseargs"
+NOSETESTS="nosetests leap --first-package-wins --exclude=soledad* $noseopts $noseargs"
 
 if [ $never_venv -eq 0 ]
 then
