@@ -74,7 +74,7 @@ fi
 # If alltests flag is not set, let's exclude some dirs that are troublesome.
 if [ $alltests -eq 0 ]; then
   echo "[+] Running ALL tests..."
-    #noseopts="$noseopts --exclude-dir=src/leap/exclude-me"
+    noseopts="$noseopts --exclude-dir=leap/soledad"
 fi
 
 # If progressive flag enabled, run with this nice plugin :)
