@@ -103,7 +103,7 @@ function run_pep8 {
 # in the current debhelper build process,
 # so I exclude the topmost tests
 
-NOSETESTS="nosetests leap --first-package-wins --exclude=soledad* $noseopts $noseargs"
+NOSETESTS="nosetests leap --exclude=soledad* --exclude=common* $noseopts $noseargs"
 
 if [ $never_venv -eq 0 ]
 then
