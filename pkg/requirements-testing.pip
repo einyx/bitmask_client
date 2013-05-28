@@ -6,11 +6,12 @@ nose-progressive
 unittest2  # TODO we should include this dep only for python2.6
 coverage
 pep8==1.1
-
-#sphinx>=1.1.2
 tox
 
+#sphinx>=1.1.2
+
 # double reqs
+# (the client already includes, which gives some errors)
 # -----------
 # mock # re-add XXX
 #twisted

@@ -1,11 +1,11 @@
 # in order of addition to the project.
-# do not change the ordering.
+# try not to change the ordering.
 #
-argparse
-#
-PySide
+# PySide -- It's a requirement indeed, but
+# it gives troubles when operating inside virtualenvs.
 # Use LEAP_VENV_SKIP_PYSIDE to avoid installing it!
 
+argparse
 requests
 srp>=1.0.2
 pyopenssl

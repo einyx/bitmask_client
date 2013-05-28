@@ -84,7 +84,9 @@ fi
 
 
 function run_tests {
+  echo "running tests..."
   # Just run the test suites in current environment
+  echo "NOSETESTS=$NOSETESTS"
   ${wrapper} $NOSETESTS
   # If we get some short import error right away, print the error log directly
   RESULT=$?
@@ -103,7 +105,8 @@ function run_pep8 {
 # in the current debhelper build process,
 # so I exclude the topmost tests
 
-NOSETESTS="nosetests leap --exclude=soledad* $noseopts $noseargs"
+#NOSETESTS="nosetests leap --exclude=soledad* $noseopts $noseargs"
+NOSETESTS="$VIRTUAL_ENV/bin/nosetests . --with-coverage --cover-package=leap"
 
 if [ $never_venv -eq 0 ]
 then
