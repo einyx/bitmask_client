@@ -64,7 +64,7 @@ done
 
 # If enabled, tell nose to collect coverage data
 if [ $coverage -eq 1 ]; then
-    noseopts="$noseopts --with-coverage --cover-package=leap-client"
+    noseopts="$noseopts --with-coverage --cover-package=leap"
 fi
 
 if [ $no_site_packages -eq 1 ]; then
@@ -106,7 +106,8 @@ function run_pep8 {
 # so I exclude the topmost tests
 
 #NOSETESTS="nosetests leap --exclude=soledad* $noseopts $noseargs"
-NOSETESTS="$VIRTUAL_ENV/bin/nosetests . --with-coverage --cover-package=leap"
+NOSETESTS="$VIRTUAL_ENV/bin/nosetests . $noseopts $noseargs"
+#--with-coverage --cover-package=leap"
 
 if [ $never_venv -eq 0 ]
 then
@@ -153,9 +154,11 @@ if [ -z "$noseargs" ]; then
 fi
 
 function run_coverage {
-    cov_opts="--omit=`pwd`/src/leap/base/tests/*,`pwd`/src/leap/eip/tests/*,`pwd`/src/leap/gui/tests/*"
-    cov_opts="$cov_opts,`pwd`/src/leap/util/tests/* "
-    cov_opts="$cov_opts --include=`pwd`/src/leap/*" #,`pwd`/src/leap/eip/*"
+    cov_opts="--include=`pwd`/src/leap/*" #,`pwd`/src/leap/eip/*"
+    cov_opts="$cov_opts --omit=`pwd`/src/leap/gui/ui_*,`pwd`/src/leap/gui/*_rc.py*"
+    #cov_opts="--omit=`pwd`/src/leap/base/tests/*,`pwd`/src/leap/eip/tests/*,`pwd`/src/leap/gui/tests/*"
+    #cov_opts="$cov_opts,`pwd`/src/leap/util/tests/* "
+    #cov_opts="$cov_opts --include=`pwd`/src/leap/*" #,`pwd`/src/leap/eip/*"
     ${wrapper} coverage html -d docs/covhtml -i $cov_opts
     echo "now point your browser at docs/covhtml/index.html"
 }
