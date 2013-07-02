@@ -1105,7 +1105,7 @@ class MainWindow(QtGui.QMainWindow):
                     error=True)
             else:
                 self._status_panel.set_eip_status(self.tr("Disabled"))
-            self.ui.btnEipStartStop.setEnabled(False)
+            self._status_panel.set_startstop_enabled(False)
 
     def _finish_eip_bootstrap(self, data):
         """

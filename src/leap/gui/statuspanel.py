@@ -30,14 +30,43 @@ from leap.common.check import leap_assert_type
 
 logger = logging.getLogger(__name__)
 
+toggleStyleSheet = """
+QSlider::groove:horizontal {
+ border: 1px solid #999999;
+ height: 20px;
+ /* the groove expands to the size of the slider by default.*/
+ /* by giving it a   height, it has a fixed size */
+ margin: 2px 0;
+ background: qlineargradient(
+  x1:0, y1:0, x2:0, y2:1, stop:0 #B1B1B1, stop:1 #%(groove_background)s);
+}
+
+QSlider::handle:horizontal {
+ border: 1px solid #5c5c5c;
+ width: 50px;
+ height: 20px;
+ margin: -2px 0;
+ /* handle is placed by default on the contents rect */
+ /* of the groove. Expand outside the groove */
+ border-radius: 3px;
+ background: qlineargradient(
+  x1:0, y1:0, x2:1, y2:1, stop:0 #b4b4b4, stop:1 #8f8f8f);
+}
+"""
+
 
 class StatusPanelWidget(QtGui.QWidget):
     """
     Status widget that displays the current state of the LEAP services
     """
+    EIPToggledOn = QtCore.Signal()
+    EIPToggledOff = QtCore.Signal()
 
     start_eip = QtCore.Signal()
     stop_eip = QtCore.Signal()
+
+    SLIDER_EIPTOGGLE_MAXVAL = 100
+    eipswitch_val = 0
 
     def __init__(self, parent=None):
         QtGui.QWidget.__init__(self, parent)
@@ -48,12 +77,26 @@ class StatusPanelWidget(QtGui.QWidget):
         self.ui = Ui_StatusPanel()
         self.ui.setupUi(self)
 
-        self.ui.btnEipStartStop.setEnabled(False)
-        self.ui.btnEipStartStop.clicked.connect(
-            self.start_eip)
-
+        self.init_ui_eiptoggle()
         self.hide_status_box()
+        self.init_eip_icons()
 
+    def init_ui_eiptoggle(self):
+        """
+        Initializes the EIP Toggle Slider Widget.
+        """
+        self.ui.sliderEIPToggle.valueChanged[int].connect(
+            lambda val: self.changeEIPToggleOnClicked(val))
+        self.ui.sliderEIPToggle.sliderReleased.connect(
+            lambda: self.changeEIPToggleOnReleased())
+        self.setEIPToggleCustomStyle()
+        self.EIPToggledOn.connect(self.start_eip)
+        self.ui.sliderEIPToggle.setEnabled(False)
+
+    def init_eip_icons(self):
+        """
+        Initialize EIP status icons.
+        """
         # Set the EIP status icons
         self.CONNECTING_ICON = None
         self.CONNECTED_ICON = None
@@ -62,6 +105,98 @@ class StatusPanelWidget(QtGui.QWidget):
         self.CONNECTED_ICON_TRAY = None
         self.ERROR_ICON_TRAY = None
         self._set_eip_icons()
+
+    # ON/OFF slider toggle functions
+
+    def sliderEIPToggleChangeValue(self, value):
+        """
+        Changes value for the EIP Toggle Slider.
+        :param value: new value
+        :type value: int
+        """
+        slider = self.ui.sliderEIPToggle
+        self.eipswitch_val = slider.value()
+        slider.setValue(value)
+
+        if value == self.SLIDER_EIPTOGGLE_MAXVAL:
+            self.EIPToggledOn.emit()
+        else:
+            self.EIPToggledOff.emit()
+
+    def sliderEIPToggleOn(self):
+        """
+        Sets slider to ON state.
+        """
+        self.sliderEIPToggleChangeValue(self.SLIDER_EIPTOGGLE_MAXVAL)
+
+    def sliderEIPToggleOff(self):
+        """
+        Sets slider to OFF state.
+        """
+        self.sliderEIPToggleChangeValue(0)
+
+    def changeEIPToggleOnClicked(self, value):
+        """
+        If we get a click on the groove, set the slider handle to the
+        new position according to where the click is relative to the middle
+        point.
+        """
+        slider = self.ui.sliderEIPToggle
+        if not slider.isSliderDown():
+            newvalue = value
+            if value > self.eipswitch_val:
+                newvalue = self.SLIDER_EIPTOGGLE_MAXVAL
+                on = True
+            else:
+                newvalue = 0
+                on = False
+            self.setEIPToggleCustomStyle(on=on)
+            self.sliderEIPToggleChangeValue(newvalue)
+
+    def changeEIPToggleOnReleased(self):
+        """
+        When the slider is released, set the new value according to the
+        position relative to the middle point.
+        """
+        slider = self.ui.sliderEIPToggle
+        value = slider.sliderPosition()
+        if value > (self.SLIDER_EIPTOGGLE_MAXVAL/2):
+            newvalue = self.SLIDER_EIPTOGGLE_MAXVAL
+            on = True
+        else:
+            newvalue = 0
+            self.ui.sliderEIPToggle.setValue(0)
+            on = False
+        self.setEIPToggleCustomStyle(on=on)
+        self.sliderEIPToggleChangeValue(newvalue)
+
+    def _get_toggle_style(self, on):
+        """
+        Gets the appropriate stylesheet for the current
+        toggle status.
+        """
+        bck = "c4c4c4" if on else "d47171"
+        return toggleStyleSheet % {"groove_background": bck}
+
+    def setEIPToggleCustomStyle(self, on=True):
+        """
+        Sets a custom stylesheet for the toggle slider.
+        :param on: whether the widget is in on state.
+        :type on: bool
+        """
+        set_style = self.ui.sliderEIPToggle.setStyleSheet
+        style = self._get_toggle_style(on)
+        set_style(style)
+
+    def set_startstop_enabled(self, value):
+        """
+        Enable or disable sliderEIPToggle based on value.
+
+        :param value: True for enabled, False otherwise
+        :type value: bool
+        """
+        leap_assert_type(value, bool)
+        self.ui.sliderEIPToggle.setEnabled(value)
 
     def _set_eip_icons(self):
         """
@@ -154,16 +289,6 @@ class StatusPanelWidget(QtGui.QWidget):
             status = "<font color='red'>%s</font>" % (status,)
         self.ui.lblEIPStatus.setText(status)
 
-    def set_startstop_enabled(self, value):
-        """
-        Enable or disable btnEipStartStop based on value
-
-        :param value: True for enabled, False otherwise
-        :type value: bool
-        """
-        leap_assert_type(value, bool)
-        self.ui.btnEipStartStop.setEnabled(value)
-
     def eip_pre_up(self):
         """
         Triggered when the app activates eip.
@@ -175,22 +300,26 @@ class StatusPanelWidget(QtGui.QWidget):
     def eip_started(self):
         """
         Sets the state of the widget to how it should look after EIP
-        has started
+        has started, ie, slider ON.
         """
-        self.ui.btnEipStartStop.setText(self.tr("Turn OFF"))
-        self.ui.btnEipStartStop.disconnect(self)
-        self.ui.btnEipStartStop.clicked.connect(
-            self.stop_eip)
+        try:
+            self.EIPToggledOn.disconnect()
+        except RuntimeError:
+            pass
+        self.EIPToggledOff.connect(self.stop_eip)
+        self.sliderEIPToggleOn()
 
     def eip_stopped(self):
         """
         Sets the state of the widget to how it should look after EIP
-        has stopped
+        has stopped, ie, slider OFF.
         """
-        self.ui.btnEipStartStop.setText(self.tr("Turn ON"))
-        self.ui.btnEipStartStop.disconnect(self)
-        self.ui.btnEipStartStop.clicked.connect(
-            self.start_eip)
+        try:
+            self.EIPToggledOff.disconnect()
+        except RuntimeError:
+            pass
+        self.EIPToggledOn.connect(self.start_eip)
+        self.sliderEIPToggleOff()
 
     def set_icon(self, icon):
         """

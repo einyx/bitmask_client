@@ -78,9 +78,30 @@
          </spacer>
         </item>
         <item>
-         <widget class="QPushButton" name="btnEipStartStop">
-          <property name="text">
-           <string>Turn On</string>
+         <widget class="QSlider" name="sliderEIPToggle">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>100</width>
+            <height>10</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>100</width>
+            <height>40</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>Toggle encryption</string>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
           </property>
          </widget>
         </item>
@@ -233,9 +254,6 @@
     </spacer>
    </item>
   </layout>
-  <zorder>lblProvider</zorder>
-  <zorder>status_rows</zorder>
-  <zorder>globalStatusBox</zorder>
  </widget>
  <resources>
   <include location="../../../../data/resources/icons.qrc"/>
