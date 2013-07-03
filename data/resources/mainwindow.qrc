@@ -17,5 +17,8 @@
     <file>../images/Dialog-accept.png</file>
     <file>../images/Dialog-error.png</file>
     <file>../images/Emblem-question.png</file>
+    <file>../images/eip-slider-on.png</file>
+    <file>../images/eip-slider-off.png</file>
+    <file>../images/eip-slider-inprogress.png</file>
   </qresource>
 </RCC>

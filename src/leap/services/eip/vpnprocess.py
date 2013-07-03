@@ -718,3 +718,5 @@ class VPNProcess(protocol.ProcessProtocol, VPNManager):
             self.transport.signalProcess('KILL')
         except internet_error.ProcessExitedAlready:
             logger.debug('Process Exited Already')
+        except OSError as exc:
+            logger.warning("Could not kill process: %r" % (exc,))

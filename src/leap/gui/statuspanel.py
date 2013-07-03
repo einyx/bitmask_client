@@ -24,26 +24,30 @@ from functools import partial
 from PySide import QtCore, QtGui
 
 from ui_statuspanel import Ui_StatusPanel
+from leap.common.check import leap_assert
 from leap.services.eip.vpnprocess import VPNManager
 from leap.platform_init import IS_WIN, IS_LINUX
 from leap.common.check import leap_assert_type
 
 logger = logging.getLogger(__name__)
 
+#background: qlineargradient(
+#x1:0, y1:0, x2:0, y2:1, stop:0 #B1B1B1, stop:1 #%(groove_background)s);
+
 toggleStyleSheet = """
 QSlider::groove:horizontal {
  border: 1px solid #999999;
+ border-radius: 3px;
  height: 20px;
  /* the groove expands to the size of the slider by default.*/
  /* by giving it a   height, it has a fixed size */
  margin: 2px 0;
- background: qlineargradient(
-  x1:0, y1:0, x2:0, y2:1, stop:0 #B1B1B1, stop:1 #%(groove_background)s);
+ background-image: url(:/images/eip-slider-%(status)s.png);
 }
 
 QSlider::handle:horizontal {
  border: 1px solid #5c5c5c;
- width: 50px;
+ width: 45px;
  height: 20px;
  margin: -2px 0;
  /* handle is placed by default on the contents rect */
@@ -89,7 +93,7 @@ class StatusPanelWidget(QtGui.QWidget):
             lambda val: self.changeEIPToggleOnClicked(val))
         self.ui.sliderEIPToggle.sliderReleased.connect(
             lambda: self.changeEIPToggleOnReleased())
-        self.setEIPToggleCustomStyle()
+        self.setEIPToggleCustomStyle(on=False)
         self.EIPToggledOn.connect(self.start_eip)
         self.ui.sliderEIPToggle.setEnabled(False)
 
@@ -125,15 +129,24 @@ class StatusPanelWidget(QtGui.QWidget):
 
     def sliderEIPToggleOn(self):
         """
-        Sets slider to ON state.
+        Sets slider to ON state, in progress background.
         """
         self.sliderEIPToggleChangeValue(self.SLIDER_EIPTOGGLE_MAXVAL)
+        self.setEIPToggleCustomStyle(on=True, inprogress=True)
+
+    def sliderEIPToggleConnected(self):
+        """
+        Sets slider to ON state, with the ON background.
+        """
+        self.sliderEIPToggleChangeValue(self.SLIDER_EIPTOGGLE_MAXVAL)
+        self.setEIPToggleCustomStyle(on=True, inprogress=False)
 
     def sliderEIPToggleOff(self):
         """
         Sets slider to OFF state.
         """
         self.sliderEIPToggleChangeValue(0)
+        self.setEIPToggleCustomStyle(on=False)
 
     def changeEIPToggleOnClicked(self, value):
         """
@@ -150,7 +163,7 @@ class StatusPanelWidget(QtGui.QWidget):
             else:
                 newvalue = 0
                 on = False
-            self.setEIPToggleCustomStyle(on=on)
+            self.setEIPToggleCustomStyle(on=on, inprogress=True)
             self.sliderEIPToggleChangeValue(newvalue)
 
     def changeEIPToggleOnReleased(self):
@@ -167,25 +180,32 @@ class StatusPanelWidget(QtGui.QWidget):
             newvalue = 0
             self.ui.sliderEIPToggle.setValue(0)
             on = False
-        self.setEIPToggleCustomStyle(on=on)
+        self.setEIPToggleCustomStyle(on=on, inprogress=True)
         self.sliderEIPToggleChangeValue(newvalue)
 
-    def _get_toggle_style(self, on):
+    def _get_toggle_style(self, status):
         """
         Gets the appropriate stylesheet for the current
         toggle status.
+        :param status: slider status to style
+        :type inprogress: string
         """
-        bck = "c4c4c4" if on else "d47171"
-        return toggleStyleSheet % {"groove_background": bck}
+        leap_assert(status in ('on', 'off', 'inprogress'),
+                    "invalid status for slider styles")
+        return toggleStyleSheet % {"status": status}
 
-    def setEIPToggleCustomStyle(self, on=True):
+    def setEIPToggleCustomStyle(self, on=True, inprogress=False):
         """
         Sets a custom stylesheet for the toggle slider.
         :param on: whether the widget is in on state.
         :type on: bool
         """
         set_style = self.ui.sliderEIPToggle.setStyleSheet
-        style = self._get_toggle_style(on)
+        if inprogress:
+            status = "inprogress"
+        else:
+            status = "on" if on else "off"
+        style = self._get_toggle_style(status)
         set_style(style)
 
     def set_startstop_enabled(self, value):
@@ -360,6 +380,7 @@ class StatusPanelWidget(QtGui.QWidget):
         if status == "CONNECTED":
             self.set_eip_status(self.tr("ON"))
             # Only now we can properly enable the button.
+            self.sliderEIPToggleConnected()
             self.set_startstop_enabled(True)
         elif status == "AUTH":
             self.set_eip_status(self.tr("Authenticating..."))
