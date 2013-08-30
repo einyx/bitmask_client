@@ -8,7 +8,8 @@ ipaddr
 twisted
 qt4reactor
 python-gnupg
-leap.common>=0.2.5
-leap.soledad>=0.1.0
-mock
+leap.common>=0.3.0
+leap.soledad.client>=0.3.0
+leap.keymanager>=0.2.0
+leap.mail>=0.3.0
 oauth

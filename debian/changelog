@@ -1,3 +1,9 @@
+bitmask (0.3.1.1) unstable; urgency=low
+
+  * Cherry-pick fix for requirements-parser.
+
+ -- Ben Carrillo <ben@futeisha.org>  Fri, 30 Aug 2013 20:06:51 +0200
+
 bitmask (0.3.1) unstable; urgency=low
 
   [ Ben Carrillo ]
