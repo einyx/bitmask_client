@@ -209,8 +209,7 @@ class LoggerWindow(QtGui.QDialog):
                             paste_expire_date='1W')
 
             # convert to 'raw' link
-            link = "http://pastebin.com/raw.php?i=" + link.split('/')[-1]
-
+            link = "https://pastebin.com/raw.php?i=" + link.split('/')[-1]
             return link
 
         def pastebin_ok(link):

@@ -71,19 +71,19 @@ class PastebinAPI(object):
     _base_domain = 'pastebin.com'
 
     # Valid Pastebin URLs begin with this string (kinda obvious)
-    _prefix_url = 'http://%s/' % _base_domain
+    _prefix_url = 'https://%s/' % _base_domain
 
     # Valid Pastebin URLs with a custom subdomain begin with this string
-    _subdomain_url = 'http://%%s.%s/' % _base_domain
+    _subdomain_url = 'https://%%s.%s/' % _base_domain
 
     # URL to the LEGACY POST API
-    _legacy_api_url = 'http://%s/api_public.php' % _base_domain
+    _legacy_api_url = 'https://%s/api_public.php' % _base_domain
 
     # URL to the POST API
-    _api_url = 'http://%s/api/api_post.php' % _base_domain
+    _api_url = 'https://%s/api/api_post.php' % _base_domain
 
     # URL to the login POST API
-    _api_login_url = 'http://%s/api/api_login.php' % _base_domain
+    _api_login_url = 'https://%s/api/api_login.php' % _base_domain
 
     # Valid paste_expire_date values: Never, 10 minutes, 1 Hour, 1 Day, 1 Month
     paste_expire_date = ('N', '10M', '1H', '1D', '1M')
