@@ -18,6 +18,7 @@
 Main window for Bitmask.
 """
 import logging
+import os
 import socket
 
 from threading import Condition
@@ -1988,7 +1989,7 @@ class MainWindow(QtGui.QMainWindow):
         Call all the cleanup actions in a serialized way.
         Should be called from the quit function.
         """
-        logger.debug('About to quit, doing cleanup...')
+        logger.debug('About to quit (%s), doing cleanup...' % (os.getpid(),))
 
         self._stop_imap_service()
 
@@ -2039,4 +2040,4 @@ class MainWindow(QtGui.QMainWindow):
         if self._quit_callback:
             self._quit_callback()
 
-        logger.debug('Bye.')
+        logger.debug('Bye. Have a nice day.')
