@@ -18,6 +18,8 @@
 Main window for Bitmask.
 """
 import logging
+import os
+import socket
 
 from datetime import datetime
 
@@ -1781,3 +1783,4 @@ class MainWindow(QtGui.QMainWindow):
         self.close()
 
         QtDelayedCall(1, twisted_main.quit)
+        logger.debug('Bye. Have a nice day.')

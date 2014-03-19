@@ -39,6 +39,8 @@
 # M:::::::::::~NMMM7???7MMMM:::::::::::::::::::::::NMMMI??I7MMMM:::::::::::::M
 # M::::::::::::::7MMMMMMM+:::::::::::::::::::::::::::?MMMMMMMZ:::::::::::::::M
 #                (thanks to: http://www.glassgiant.com/ascii/)
+import atexit
+import logging
 import signal
 import sys
 import os
@@ -47,9 +49,10 @@ from functools import partial
 
 from PySide import QtCore, QtGui
 
+import psutil
+
 from leap.bitmask import __version__ as VERSION
 from leap.bitmask.config import flags
-from leap.bitmask.gui import locale_rc  # noqa - silence pylint
 from leap.bitmask.gui.mainwindow import MainWindow
 from leap.bitmask.logs.utils import create_logger
 from leap.bitmask.platform_init.locks import we_are_the_one_and_only
@@ -77,6 +80,20 @@ def sigint_handler(*args, **kwargs):
         logger.debug("SIGINT catched. shutting down...")
     mainwindow = args[0]
     mainwindow.quit()
+
+
+def kill_the_children(including_parent=False):
+    """
+    Make sure no lingering subprocesses are left in case of a bad termination.
+    """
+    me = os.getpid()
+    parent = psutil.Process(me)
+    for child in parent.get_children(recursive=True):
+        child.kill()
+    if including_parent:
+        parent.kill()
+
+atexit.register(kill_the_children)
 
 
 def sigterm_handler(*args, **kwargs):
