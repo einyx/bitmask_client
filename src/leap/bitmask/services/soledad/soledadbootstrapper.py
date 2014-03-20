@@ -415,7 +415,8 @@ class SoledadBootstrapper(AbstractBootstrapper):
                 local_db_path=local_db_path.encode(encoding),
                 server_url=server_url,
                 cert_file=cert_file.encode(encoding),
-                auth_token=auth_token)
+                auth_token=auth_token,
+                defer_encryption=True)
 
         # XXX All these errors should be handled by soledad itself,
         # and return a subclass of SoledadInitializationFailed
