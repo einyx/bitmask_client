@@ -135,8 +135,7 @@ class SoledadBootstrapper(AbstractBootstrapper):
     MAX_INIT_RETRIES = 10
     MAX_SYNC_RETRIES = 10
     WAIT_MAX_SECONDS = 600
-    #WAIT_STEP_SECONDS = 1
-    WAIT_STEP_SECONDS = 5
+    WAIT_STEP_SECONDS = 1
 
     # All dicts returned are of the form
     # {"passed": bool, "error": str}
