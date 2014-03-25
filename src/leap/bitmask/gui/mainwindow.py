@@ -1710,6 +1710,7 @@ class MainWindow(QtGui.QMainWindow):
         Start the quit sequence and wait for services to finish.
         Cleanup and close the main window before quitting.
         """
+        logger.debug("Quitting bitmask application...")
         # TODO separate the shutting down of services from the
         # UI stuff.
 
