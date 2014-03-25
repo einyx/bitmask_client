@@ -2019,6 +2019,7 @@ class MainWindow(QtGui.QMainWindow):
         """
         Cleanup and tidely close the main window before quitting.
         """
+        logger.debug("Quitting bitmask application...")
         # TODO separate the shutting down of services from the
         # UI stuff.
 

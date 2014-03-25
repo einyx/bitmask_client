@@ -76,14 +76,17 @@ def sigint_handler(*args, **kwargs):
     logger = kwargs.get('logger', None)
     if logger:
         logger.debug("SIGINT catched. shutting down...")
-    mainwindow = args[0]
-    mainwindow.quit()
+    parentpid = kwargs.get('parentpid', None)
+    if parentpid == os.getpid():
+        mainwindow = args[0]
+        mainwindow.quit()
 
 
 def kill_the_children(including_parent=False):
     """
     Make sure no lingering subprocesses are left in case of a bad termination.
     """
+    print "Killing all children processes..."
     me = os.getpid()
     parent = psutil.Process(me)
     for child in parent.get_children(recursive=True):
@@ -324,7 +327,9 @@ def main():
         openvpn_verb=openvpn_verb,
         bypass_checks=bypass_checks)
 
-    sigint_window = partial(sigint_handler, window, logger=logger)
+    mainpid = os.getpid()
+    sigint_window = partial(sigint_handler, window, logger=logger,
+                            parentpid=mainpid)
     signal.signal(signal.SIGINT, sigint_window)
 
     if IS_MAC:
