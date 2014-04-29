@@ -60,8 +60,9 @@ DELTA_RESTART = 1
 VPN_GATEWAY = os.getenv('route_vpn_gateway')
 DEBUG = os.getenv('DEBUG')
 
+print "VPN GATEWAY: ", VPN_GATEWAY
+
 if DEBUG:
-    print "VPN GATEWAY: ", VPN_GATEWAY
 
     #for k, v in os.environ.items():
     #    print k, '-->', v
@@ -128,7 +129,7 @@ def recently_restarted():
         return False
 
 
-def validate_ipaddr(value):
+def is_valid_ipaddr(value):
     """
     Validate that the passed ip is a valid IP address.
 
@@ -140,24 +141,28 @@ def validate_ipaddr(value):
         ipaddr.IPAddress(value)
         return True
     except Exception:
-        print "MALFORMED VPN GATEWAY! quitting"
-        sys.exit(1)
+        print "MALFORMED VPN GATEWAY: %s!" % value
+        return False
 
 
 def fw_up():
     """
     Bring the firewall up.
     """
-    validate_ipaddr(VPN_GATEWAY)
-    subprocess.Popen([LEAP_FIREWALL, FW_START_ACTION, VPN_GATEWAY])
+    print "FW UP ??"
+    if is_valid_ipaddr(VPN_GATEWAY):
+        print "VALID --- UP"
+        subprocess.Popen([LEAP_FIREWALL, FW_START_ACTION, VPN_GATEWAY])
 
 
 def fw_down():
     """
     Tear the firewall down.
     """
-    validate_ipaddr(VPN_GATEWAY)
-    subprocess.Popen([LEAP_FIREWALL, FW_STOP_ACTION, VPN_GATEWAY])
+    print "FW DOWN ??"
+    if is_valid_ipaddr(VPN_GATEWAY):
+        print "VALID --- DOWN"
+        subprocess.Popen([LEAP_FIREWALL, FW_STOP_ACTION, VPN_GATEWAY])
 
 
 if __name__ == "__main__":
@@ -167,6 +172,7 @@ if __name__ == "__main__":
         fw_up()
 
     if script == VPN_UP_FILE and condition == RESTART_CONDITION:
+	print "UPDATE MTIME"
         updatemtime()
 
     if script == VPN_DOWN_FILE and condition == INIT_CONDITION:
