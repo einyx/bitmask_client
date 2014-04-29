@@ -149,9 +149,7 @@ def fw_up():
     """
     Bring the firewall up.
     """
-    print "FW UP ??"
     if is_valid_ipaddr(VPN_GATEWAY):
-        print "VALID --- UP"
         subprocess.Popen([LEAP_FIREWALL, FW_START_ACTION, VPN_GATEWAY])
 
 
@@ -159,9 +157,7 @@ def fw_down():
     """
     Tear the firewall down.
     """
-    print "FW DOWN ??"
     if is_valid_ipaddr(VPN_GATEWAY):
-        print "VALID --- DOWN"
         subprocess.Popen([LEAP_FIREWALL, FW_STOP_ACTION, VPN_GATEWAY])
 
 
