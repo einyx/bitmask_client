@@ -66,6 +66,10 @@ function start() {
 	$iptables --insert OUTPUT --destination $gateway -o $default_device --jump ACCEPT
   done
 
+  # allow tunnel traffic through
+  $iptables --check  OUTPUT -p udp --dport 1194 -j ACCEPT &> /dev/null || \
+  $iptables --insert OUTPUT -p udp --dport 1194 -j ACCEPT
+
   # allow traffic to IPs on local network
   if [ $local_network_ipv4 ]; then
     $iptables --check  OUTPUT --destination $local_network_ipv4 -o $default_device --jump ACCEPT &> /dev/null || \
@@ -84,6 +88,7 @@ function start() {
   # allow DNS requests to localhost
   $iptables --check  OUTPUT --protocol udp --dport 53 --destination 127.0.0.1,127.0.1.1 --jump ACCEPT &> /dev/null || \
   $iptables --insert OUTPUT --protocol udp --dport 53 --destination 127.0.0.1,127.0.1.1 --jump ACCEPT
+
 }
 
 #
@@ -100,6 +105,9 @@ function stop() {
     $iptables --check  OUTPUT --destination $gateway -o $default_device --jump ACCEPT &> /dev/null && \
     $iptables --delete OUTPUT --destination $gateway -o $default_device --jump ACCEPT
   done
+
+  $iptables --check  OUTPUT -p udp --dport 1194 -j ACCEPT &> /dev/null && \
+  $iptables --delete OUTPUT -p udp --dport 1194 -j ACCEPT
 
   if [ $local_network_ipv4 ]; then
     $iptables --check  OUTPUT --destination $local_network_ipv4 -o $default_device --jump ACCEPT &> /dev/null && \
