@@ -1,0 +1,178 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# leap-vpn-updown
+# Copyright (C) 2014 LEAP
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+Firewall script to modify routes before stablishing a openvpn connection, and
+after tearing it down.
+
+This script is expected to be run by using two hard links, defined under
+VPN_UP_FILE and VPN_DOWN_FILE constants.
+"""
+import os
+import subprocess
+import sys
+import time
+
+import logging
+
+# XXX implement fallback via regex if ipaddr not available
+import ipaddr
+
+VPN_UP_FILE = "vpn-up"
+VPN_DOWN_FILE = "vpn-down"
+
+INIT_CONDITION = "init"
+RESTART_CONDITION = "restart"
+
+FW_START_ACTION = "start"
+FW_STOP_ACTION = "stop"
+
+"""
+The file that will keep track of the restart state, via its file attributes.
+"""
+TSFILE = "/tmp/leap-eip-restart"
+
+"""
+The leap firewall path
+"""
+LEAP_FIREWALL = "/etc/leap/leap-fw"
+
+"""
+The delta time, in seconds, to consider a down init as a bogus call, due to
+restart.
+"""
+DELTA_RESTART = 1
+
+VPN_GATEWAY = os.getenv('route_vpn_gateway')
+DEBUG = os.getenv('DEBUG')
+
+if DEBUG:
+    print "VPN GATEWAY: ", VPN_GATEWAY
+
+    #for k, v in os.environ.items():
+    #    print k, '-->', v
+
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    ch.setFormatter(formatter)
+
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(ch)
+
+    logger.debug(' '.join(sys.argv))
+
+condition = sys.argv[-1]
+command = sys.argv[0]
+script = command.split('/')[-1]
+
+
+def getmtime():
+    """
+    Return the modification time of the timestamp file.
+
+    :rtype: float
+    """
+    if os.path.isfile(TSFILE):
+        return os.path.getmtime(TSFILE)
+
+
+def updatemtime():
+    """
+    Update the modification time of the timestamp file, by touching it.
+    """
+    if not os.path.isfile(TSFILE):
+        f = open(TSFILE, 'a')
+        f.close()
+    os.utime(TSFILE, None)
+    # XXX should also make chown to uid=0
+
+
+def recently_restarted():
+    """
+    Return True if the current timestamp
+    is within the accepted range from the last written modification time for
+    the timestamp file.
+
+    :rtype: bool
+    """
+    now = time.time()
+    mtime = getmtime()
+    if mtime is None:
+        return False
+
+    delta = now - mtime
+
+    if DEBUG:
+        print "DELTA: ", delta
+
+    if delta < DELTA_RESTART:
+        return True
+    else:
+        return False
+
+
+def validate_ipaddr(value):
+    """
+    Validate that the passed ip is a valid IP address.
+
+    :param value: the value to be validated
+    :type value: str
+    :rtype: bool
+    """
+    try:
+        ipaddr.IPAddress(value)
+        return True
+    except Exception:
+        print "MALFORMED VPN GATEWAY! quitting"
+        sys.exit(1)
+
+
+def fw_up():
+    """
+    Bring the firewall up.
+    """
+    validate_ipaddr(VPN_GATEWAY)
+    subprocess.Popen([LEAP_FIREWALL, FW_START_ACTION, VPN_GATEWAY])
+
+
+def fw_down():
+    """
+    Tear the firewall down.
+    """
+    validate_ipaddr(VPN_GATEWAY)
+    subprocess.Popen([LEAP_FIREWALL, FW_STOP_ACTION, VPN_GATEWAY])
+
+
+if __name__ == "__main__":
+
+    if script == VPN_UP_FILE and condition == INIT_CONDITION:
+        print "FIREWALL UP"
+        fw_up()
+
+    if script == VPN_UP_FILE and condition == RESTART_CONDITION:
+        updatemtime()
+
+    if script == VPN_DOWN_FILE and condition == INIT_CONDITION:
+        if recently_restarted():
+            if DEBUG:
+                print "DOWN BOGUS RESTART ---> IGNORING"
+        else:
+            print "FIREWALL DOWN"
+            fw_down()

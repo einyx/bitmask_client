@@ -1,0 +1,129 @@
+#!/bin/bash
+#
+# A firewall for Encrypted Internet Proxy on Linux. It does the following:
+#
+# * ensures that all traffic to the public internet must go through a VPN gateway.
+# * ensures that we don't leak ipv6 traffic
+# * ensures that we cannot make a DNS query that is not to a VPN gateway.
+# * allows direct access to the local network.
+#
+# This is mostly an *egress* firewall, to prevent unencrypted traffic. This firewall should
+# be enabled before attempting to connect OpenVPN. It should be disabled only once the user
+# has indicated they no longer want Encrypted Internet Proxy.
+#
+# License: GPLv3
+# Copyright: 2014 LEAP Encryption Access Project
+#
+# TODO:
+# * support ipv6 vpn gateways
+# * use a separate chain so we can flush it altogether
+#
+# USAGE:
+#   firewall start GATEWAY1 GATEWAY2 ...
+#   firewall stop GATEWAY1 GATEWAY2 ...
+#
+
+#
+# parse args
+#
+command=$1
+shift
+gateways="$@"
+
+#
+# paths (must use absolute paths, since this script is run as root)
+#
+iptables=/sbin/iptables
+ip6tables=/sbin/ip6tables
+ip=/sbin/ip
+grep=/bin/grep
+awk=/usr/bin/awk
+
+#
+# discover local network
+#
+default_device=`$ip route show | $grep -m1 default | $awk '{print $5}'`
+local_network_ipv4=`$ip -o address show dev $default_device | $grep 'inet ' | $awk '{print $4}'`
+local_network_ipv6=`$ip -o address show dev $default_device | $grep 'inet6 ' | $awk '{print $4}'`
+
+#
+# start firewall
+#
+function start() {
+  # note: --insert puts the new rule first, so these rules are evaluated in reverse
+  # of the order they are specified.
+
+  # block all traffic
+  $iptables --check  OUTPUT -o $default_device --jump REJECT &> /dev/null || \
+  $iptables --insert OUTPUT -o $default_device --jump REJECT
+
+  $ip6tables --check  OUTPUT -o $default_device --jump REJECT &> /dev/null || \
+  $ip6tables --insert OUTPUT -o $default_device --jump REJECT
+
+  # allow traffic to gateways
+  for gateway in $gateways; do
+    	$iptables --check  OUTPUT --destination $gateway -o $default_device --jump ACCEPT &> /dev/null || \
+	$iptables --insert OUTPUT --destination $gateway -o $default_device --jump ACCEPT
+  done
+
+  # allow traffic to IPs on local network
+  if [ $local_network_ipv4 ]; then
+    $iptables --check  OUTPUT --destination $local_network_ipv4 -o $default_device --jump ACCEPT &> /dev/null || \
+    $iptables --insert OUTPUT --destination $local_network_ipv4 -o $default_device --jump ACCEPT
+  fi
+  if [ $local_network_ipv6 ]; then
+    $ip6tables --check  OUTPUT --destination $local_network_ipv6 -o $default_device --jump ACCEPT &> /dev/null || \
+    $ip6tables --insert OUTPUT --destination $local_network_ipv6 -o $default_device --jump ACCEPT
+  fi
+
+  # block DNS requests to anyone but the service provider
+  for gateway in $gateways; do
+    $iptables --check  OUTPUT --protocol udp --dport 53 ! --destination $gateway --jump REJECT &> /dev/null || \
+    $iptables --insert OUTPUT --protocol udp --dport 53 ! --destination $gateway --jump REJECT
+  done
+  # allow DNS requests to localhost
+  $iptables --check  OUTPUT --protocol udp --dport 53 --destination 127.0.0.1,127.0.1.1 --jump ACCEPT &> /dev/null || \
+  $iptables --insert OUTPUT --protocol udp --dport 53 --destination 127.0.0.1,127.0.1.1 --jump ACCEPT
+}
+
+#
+# stop firewall
+#
+function stop() {
+  $iptables --check  OUTPUT -o $default_device --jump REJECT &> /dev/null && \
+  $iptables --delete OUTPUT -o $default_device --jump REJECT
+
+  $ip6tables --check  OUTPUT -o $default_device --jump REJECT &> /dev/null && \
+  $ip6tables --delete OUTPUT -o $default_device --jump REJECT
+
+  for gateway in $gateways; do
+    $iptables --check  OUTPUT --destination $gateway -o $default_device --jump ACCEPT &> /dev/null && \
+    $iptables --delete OUTPUT --destination $gateway -o $default_device --jump ACCEPT
+  done
+
+  if [ $local_network_ipv4 ]; then
+    $iptables --check  OUTPUT --destination $local_network_ipv4 -o $default_device --jump ACCEPT &> /dev/null && \
+    $iptables --delete OUTPUT --destination $local_network_ipv4 -o $default_device --jump ACCEPT
+  fi
+
+  if [ $local_network_ipv6 ]; then
+    $ip6tables --check  OUTPUT --destination $local_network_ipv6 -o $default_device --jump ACCEPT &> /dev/null && \
+    $ip6tables --delete OUTPUT --destination $local_network_ipv6 -o $default_device --jump ACCEPT
+  fi
+
+  for gateway in $gateways; do
+    $iptables --check  OUTPUT --protocol udp --dport 53 ! --destination $gateway --jump REJECT &> /dev/null && \
+    $iptables --delete OUTPUT --protocol udp --dport 53 ! --destination $gateway --jump REJECT
+  done
+
+  $iptables --check  OUTPUT --protocol udp --dport 53 --destination 127.0.0.1,127.0.1.1 --jump ACCEPT &> /dev/null && \
+  $iptables --delete OUTPUT --protocol udp --dport 53 --destination 127.0.0.1,127.0.1.1 --jump ACCEPT
+}
+
+#
+# run command
+#
+case $command in
+  start) start ;;
+  stop)  stop  ;;
+esac
