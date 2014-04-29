@@ -42,6 +42,13 @@ FW_START_ACTION = "start"
 FW_STOP_ACTION = "stop"
 
 """
+The path to the script to update resolv.conf
+"""
+# XXX fix for bundle
+VPN_UPDATE_RESOLVCONF_FILE = "/etc/openvpn/update-resolv-conf"
+
+
+"""
 The file that will keep track of the restart state, via its file attributes.
 """
 TSFILE = "/tmp/leap-eip-restart"
@@ -161,11 +168,30 @@ def fw_down():
         subprocess.Popen([LEAP_FIREWALL, FW_STOP_ACTION, VPN_GATEWAY])
 
 
+def has_valid_update_resolvconf():
+    """
+    Return True if a valid update-resolv-conf script is found in the system
+    """
+    if os.path.isfile(VPN_UPDATE_RESOLVCONF_FILE):
+        return True
+    return False
+
+
+def update_resolvconf():
+    """
+    Try to update resolvconf.
+    """
+    if has_valid_update_resolvconf():
+        subprocess.Popen([VPN_UPDATE_RESOLVCONF_FILE])
+
+
 if __name__ == "__main__":
 
     if script == VPN_UP_FILE and condition == INIT_CONDITION:
         print "FIREWALL UP"
         fw_up()
+        print "UPDATE RESOLV.CONF"
+        update_resolvconf()
 
     if script == VPN_UP_FILE and condition == RESTART_CONDITION:
         print "UPDATE MTIME"
@@ -176,5 +202,7 @@ if __name__ == "__main__":
             if DEBUG:
                 print "DOWN BOGUS RESTART ---> IGNORING"
         else:
+            print "UPDATE RESOLV.CONF"
+            update_resolvconf()
             print "FIREWALL DOWN"
             fw_down()
