@@ -172,7 +172,7 @@ if __name__ == "__main__":
         fw_up()
 
     if script == VPN_UP_FILE and condition == RESTART_CONDITION:
-	print "UPDATE MTIME"
+        print "UPDATE MTIME"
         updatemtime()
 
     if script == VPN_DOWN_FILE and condition == INIT_CONDITION:
