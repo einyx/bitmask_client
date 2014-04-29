@@ -43,8 +43,8 @@ awk=/usr/bin/awk
 # discover local network
 #
 default_device=`$ip route show | $grep -m1 default | $awk '{print $5}'`
-local_network_ipv4=`$ip -o address show dev $default_device | $grep 'inet ' | $awk '{print $4}'`
-local_network_ipv6=`$ip -o address show dev $default_device | $grep 'inet6 ' | $awk '{print $4}'`
+local_network_ipv4=`$ip -o address show dev $default_device | $grep 'inet ' | $awk '{print $4}' | head -n 1`
+local_network_ipv6=`$ip -o address show dev $default_device | $grep 'inet6 ' | $awk '{print $4}' | head -n 1`
 
 #
 # start firewall
