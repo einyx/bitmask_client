@@ -24,13 +24,12 @@ VPN_UP_FILE and VPN_DOWN_FILE constants.
 """
 import os
 import subprocess
+import socket
 import sys
 import time
 
 import logging
 
-# XXX implement fallback via regex if ipaddr not available
-import ipaddr
 
 VPN_UP_FILE = "vpn-up"
 VPN_DOWN_FILE = "vpn-down"
@@ -145,7 +144,7 @@ def is_valid_ipaddr(value):
     :rtype: bool
     """
     try:
-        ipaddr.IPAddress(value)
+        socket.inet_aton(value)
         return True
     except Exception:
         print "MALFORMED VPN GATEWAY: %s!" % value
