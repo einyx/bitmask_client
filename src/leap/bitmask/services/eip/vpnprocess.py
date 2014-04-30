@@ -478,10 +478,11 @@ class VPNManager(object):
             return
 
         # _alive flag is set in the VPNProcess class.
-        if not self._alive:
-            logger.debug('Tried to connect to management but process is '
-                         'not alive.')
-            return
+        # XXX not valid any more, short lived wrapper.
+        #if not self._alive:
+            #logger.debug('Tried to connect to management but process is '
+                         #'not alive.')
+            #return
         logger.debug('trying to connect to management')
         if not self.aborted and not self.is_connected():
             self.connect_to_management(self._socket_host, self._socket_port)
@@ -830,7 +831,8 @@ class VPNProcess(protocol.ProcessProtocol, VPNManager):
             if not isinstance(c, str):
                 command[i] = c.encode(encoding)
 
-        logger.debug("Running VPN with command: {0}".format(command))
+        logger.debug("Running VPN with command: \n{0}".format(
+            " ".join(command)))
         return command
 
     # shutdown

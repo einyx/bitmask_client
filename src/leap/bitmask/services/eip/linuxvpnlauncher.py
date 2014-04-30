@@ -72,7 +72,6 @@ def _is_auth_agent_running():
         'ps aux | grep "[l]xpolkit"'
     ]
     is_running = [commands.getoutput(cmd) for cmd in polkit_options]
-    print "IS RUNNING ->", is_running
     return any(is_running)
 
 
@@ -116,21 +115,24 @@ class LinuxVPNLauncher(VPNLauncher):
 
     UPDOWN_FILE = "vpn-updown"
 
-    # vpn-up and vpn-down are hard-links to vpn-updown
-    UP_FILE = "vpn-up"
-    DOWN_FILE = "vpn-down"
-    UP_SCRIPT = leapfile(UP_FILE)
-    DOWN_SCRIPT = leapfile(DOWN_FILE)
-
     RESOLV_UPDATE_FILE = "resolv-update"
     RESOLV_UPDATE_SCRIPT = leapfile(RESOLV_UPDATE_FILE)
 
     RESOLVCONF_FILE = "update-resolv-conf"
     RESOLVCONF_SCRIPT = leapfile(RESOLVCONF_FILE)
 
+    # FIXME resolvconf scriipt will be the resolvconf script
+    # or resolv-update depending on whether resolvconf is
+    # instaled on the system.
+
+    UP_SCRIPT = leapfile(RESOLVCONF_FILE)
+    DOWN_SCRIPT = leapfile(RESOLVCONF_FILE)
+
     UPDOWN_FILES = (UP_SCRIPT, DOWN_SCRIPT)
     POLKIT_PATH = LinuxPolicyChecker.get_polkit_path()
     OTHER_FILES = (POLKIT_PATH, RESOLV_UPDATE_SCRIPT, RESOLVCONF_SCRIPT)
+
+    BITMASK_WRAPPER = "/usr/sbin/bitmask-eip"
 
     @classmethod
     def maybe_pkexec(kls):
@@ -216,10 +218,12 @@ class LinuxVPNLauncher(VPNLauncher):
         command = super(LinuxVPNLauncher, kls).get_vpn_command(
             eipconfig, providerconfig, socket_host, socket_port, openvpn_verb)
 
+        # XXX check for wrapper existence, and it being root-owned and
+        # executable
+        command.insert(0, kls.BITMASK_WRAPPER)
         pkexec = kls.maybe_pkexec()
         if pkexec:
             command.insert(0, first(pkexec))
-
         return command
 
     @classmethod

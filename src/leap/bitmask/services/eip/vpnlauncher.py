@@ -139,11 +139,12 @@ class VPNLauncher(object):
             kwargs['path_extension'] = os.path.join(
                 get_path_prefix(), "..", "apps", "eip")
 
+        # FIXME let the wrapper find the bins
         openvpn_possibilities = which(kls.OPENVPN_BIN, **kwargs)
         if len(openvpn_possibilities) == 0:
             raise OpenVPNNotFoundException()
 
-        openvpn = first(openvpn_possibilities)
+        #openvpn = first(openvpn_possibilities)
         args = []
 
         args += [
@@ -152,6 +153,7 @@ class VPNLauncher(object):
         ]
 
         if openvpn_verb is not None:
+            # XXX check for int
             args += ['--verb', '%d' % (openvpn_verb,)]
 
         gateways = []
@@ -226,10 +228,10 @@ class VPNLauncher(object):
                     '--down', '\"%s\"' % (kls.DOWN_SCRIPT,)
                 ]
 
-        args += [
-            '--up-restart',
-            '--persist-tun'
-        ]
+        #args += [
+            #'--up-restart',
+            #'--persist-tun'
+        #]
 
         ###########################################################
         # For the time being we are disabling the usage of the
@@ -255,7 +257,8 @@ class VPNLauncher(object):
             '--ping', '10',
             '--ping-restart', '30']
 
-        command_and_args = [openvpn] + args
+        #command_and_args = [openvpn] + args
+        command_and_args = ["start"] + args
         return command_and_args
 
     @classmethod

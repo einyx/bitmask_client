@@ -1813,6 +1813,7 @@ class MainWindow(QtGui.QMainWindow):
         signal = qtsigs.disconnected_signal
 
         # XXX check if these exitCodes are pkexec/cocoasudo specific
+        print "EXITCODE", exitCode, type(exitCode)
         if exitCode in (126, 127):
             eip_status_label = self.tr(
                 "{0} could not be launched "
@@ -1822,7 +1823,10 @@ class MainWindow(QtGui.QMainWindow):
             signal = qtsigs.connection_aborted_signal
             self._backend.terminate_eip()
 
-        elif exitCode != 0 or not self.user_stopped_eip:
+        elif exitCode != 0:
+            # XXX the wrapper now is short-lived, so we have to keep track
+            # of whether the user stopped eip in another way.
+            # or not self.user_stopped_eip:
             eip_status_label = self.tr("{0} finished in an unexpected manner!")
             eip_status_label = eip_status_label.format(self._eip_name)
             self._eip_status.eip_stopped()

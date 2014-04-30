@@ -129,7 +129,7 @@ def openvpn_up():
     if not openvpn_bin:
         return None
     openvpn_args = get_openvpn_args()
-    subprocess.Popen([[openvpn_bin] + list(openvpn_args)])
+    subprocess.Popen([openvpn_bin] + openvpn_args)
     return True
 
 
@@ -140,6 +140,9 @@ def openvpn_down():
 
 
 if __name__ == "__main__":
+
+    print "WHO?"
+    print os.getuid()
 
     command = sys.argv[1]
     action = sys.argv[2]
