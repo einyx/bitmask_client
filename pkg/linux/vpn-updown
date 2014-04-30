@@ -43,8 +43,10 @@ FW_STOP_ACTION = "stop"
 """
 The path to the script to update resolv.conf
 """
-# XXX fix for bundle
-VPN_UPDATE_RESOLVCONF_FILE = "/etc/openvpn/update-resolv-conf"
+
+RESOLVCONF_BIN = "/sbin/resolvconf"
+LEAP_UPDATE_RESOLVCONF_FILE = "/etc/leap/update-resolv-conf"
+LEAP_RESOLV_UPDATE = "/etc/leap/resolv-update"
 
 
 """
@@ -167,21 +169,37 @@ def fw_down():
         subprocess.Popen([LEAP_FIREWALL, FW_STOP_ACTION, VPN_GATEWAY])
 
 
+def has_system_resolvconf():
+    """
+    Return True if resolvconf is found in the system.
+    """
+    return os.path.isfile(RESOLVCONF_BIN)
+
+
 def has_valid_update_resolvconf():
     """
-    Return True if a valid update-resolv-conf script is found in the system
+    Return True if a valid update-resolv-conf script is found in the system.
     """
-    if os.path.isfile(VPN_UPDATE_RESOLVCONF_FILE):
-        return True
-    return False
+    return os.path.isfile(LEAP_UPDATE_RESOLVCONF_FILE)
+
+
+def has_valid_leap_resolv_update():
+    """
+    Return True if a valid resolv-update script is found in the system.
+    """
+    return os.path.isfile(LEAP_RESOLV_UPDATE)
 
 
 def update_resolvconf():
     """
     Try to update resolvconf.
     """
-    if has_valid_update_resolvconf():
-        subprocess.Popen([VPN_UPDATE_RESOLVCONF_FILE])
+    if has_system_resolvconf():
+        if has_valid_update_resolvconf():
+            subprocess.Popen([LEAP_UPDATE_RESOLVCONF_FILE])
+    else:
+        if has_valid_leap_resolv_update():
+            subprocess.Popen([LEAP_RESOLV_UPDATE])
 
 
 if __name__ == "__main__":
