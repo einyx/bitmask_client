@@ -91,15 +91,15 @@ def _try_to_launch_agent():
         logger.exception(exc)
 
 
+SYSTEM_CONFIG = "/etc/leap"
+leapfile = lambda f: "%s/%s" % (SYSTEM_CONFIG, f)
+
+
 class LinuxVPNLauncher(VPNLauncher):
     PKEXEC_BIN = 'pkexec'
     OPENVPN_BIN = 'openvpn'
     OPENVPN_BIN_PATH = os.path.join(
         get_path_prefix(), "..", "apps", "eip", OPENVPN_BIN)
-
-    SYSTEM_CONFIG = "/etc/leap"
-    UP_DOWN_FILE = "resolv-update"
-    UP_DOWN_PATH = "%s/%s" % (SYSTEM_CONFIG, UP_DOWN_FILE)
 
     # We assume this is there by our openvpn dependency, and
     # we will put it there on the bundle too.
@@ -110,10 +110,23 @@ class LinuxVPNLauncher(VPNLauncher):
         OPENVPN_DOWN_ROOT_BASE,
         OPENVPN_DOWN_ROOT_FILE)
 
-    UP_SCRIPT = DOWN_SCRIPT = UP_DOWN_PATH
-    UPDOWN_FILES = (UP_DOWN_PATH,)
+    UPDOWN_FILE = "vpn-updown"
+
+    # vpn-up and vpn-down are hard-links to vpn-updown
+    UP_FILE = "vpn-up"
+    DOWN_FILE = "vpn-down"
+    UP_SCRIPT = leapfile(UP_FILE)
+    DOWN_SCRIPT = leapfile(DOWN_FILE)
+
+    RESOLV_UPDATE_FILE = "resolv_update"
+    RESOLV_UPDATE_SCRIPT = leapfile(RESOLV_UPDATE_FILE)
+
+    RESOLVCONF_FILE = "update-resolv-conf"
+    RESOLVCONF_SCRIPT = leapfile(RESOLVCONF_FILE)
+
+    UPDOWN_FILES = (UP_SCRIPT, DOWN_SCRIPT)
     POLKIT_PATH = LinuxPolicyChecker.get_polkit_path()
-    OTHER_FILES = (POLKIT_PATH, )
+    OTHER_FILES = (POLKIT_PATH, RESOLV_UPDATE_SCRIPT, RESOLVCONF_SCRIPT)
 
     @classmethod
     def maybe_pkexec(kls):
@@ -221,7 +234,11 @@ class LinuxVPNLauncher(VPNLauncher):
 
         cmd = '#!/bin/sh\n'
         cmd += 'mkdir -p "%s"\n' % (to, )
-        cmd += 'cp "%s/%s" "%s"\n' % (frompath, kls.UP_DOWN_FILE, to)
+        cmd += 'cp "%s/%s" "%s"\n' % (frompath, kls.UPDOWN_FILE, to)
+        cmd += 'ln -f %s/%s %s/%s\n' % (to, kls.UPDOWN_FILE, to, kls.UP_FILE)
+        cmd += 'ln -f %s/%s %s/%s\n' % (to, kls.UPDOWN_FILE, to, kls.DOWN_FILE)
+        cmd += 'cp "%s/%s" "%s"\n' % (frompath, kls.RESOLVCONF_FILE, to)
+        cmd += 'cp "%s/%s" "%s"\n' % (frompath, kls.RESOLV_UDATE_FILE, to)
         cmd += 'cp "%s" "%s"\n' % (pol_file, kls.POLKIT_PATH)
         cmd += 'chmod 644 "%s"\n' % (kls.POLKIT_PATH, )
 
