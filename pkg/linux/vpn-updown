@@ -63,7 +63,7 @@ LEAP_FIREWALL = "/etc/leap/leap-fw"
 The delta time, in seconds, to consider a down init as a bogus call, due to
 restart.
 """
-DELTA_RESTART = 1
+DELTA_RESTART = 0.3
 
 VPN_GATEWAY = os.getenv('route_vpn_gateway')
 DEBUG = os.getenv('DEBUG')
