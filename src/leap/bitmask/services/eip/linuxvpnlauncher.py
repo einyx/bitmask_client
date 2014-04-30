@@ -36,6 +36,8 @@ from leap.bitmask.util import first
 
 logger = logging.getLogger(__name__)
 
+COM = commands
+
 
 class EIPNoPolkitAuthAgentAvailable(VPNLauncherException):
     pass
@@ -64,12 +66,13 @@ def _is_auth_agent_running():
     """
     # the [x] thing is to avoid grep match itself
     polkit_options = [
-        'ps aux | grep polkit-[g]nome-authentication-agent-1',
-        'ps aux | grep polkit-[k]de-authentication-agent-1',
-        'ps aux | grep polkit-[m]ate-authentication-agent-1',
-        'ps aux | grep [l]xpolkit'
+        'ps aux | grep "polkit-[g]nome-authentication-agent-1"',
+        'ps aux | grep "polkit-[k]de-authentication-agent-1"',
+        'ps aux | grep "polkit-[m]ate-authentication-agent-1"',
+        'ps aux | grep "[l]xpolkit"'
     ]
     is_running = [commands.getoutput(cmd) for cmd in polkit_options]
+    print "IS RUNNING ->", is_running
     return any(is_running)
 
 
@@ -85,6 +88,7 @@ def _try_to_launch_agent():
         # will do "sh -c 'foo'", so if we do not quoute it we'll end
         # up with a invocation to the python interpreter. And that
         # is bad.
+        logger.debug("Trying to launch polkit agent")
         subprocess.call(["python -m leap.bitmask.util.polkit_agent"],
                         shell=True, env=env)
     except Exception as exc:
@@ -118,7 +122,7 @@ class LinuxVPNLauncher(VPNLauncher):
     UP_SCRIPT = leapfile(UP_FILE)
     DOWN_SCRIPT = leapfile(DOWN_FILE)
 
-    RESOLV_UPDATE_FILE = "resolv_update"
+    RESOLV_UPDATE_FILE = "resolv-update"
     RESOLV_UPDATE_SCRIPT = leapfile(RESOLV_UPDATE_FILE)
 
     RESOLVCONF_FILE = "update-resolv-conf"
@@ -144,7 +148,7 @@ class LinuxVPNLauncher(VPNLauncher):
         if _is_pkexec_in_system():
             if not _is_auth_agent_running():
                 _try_to_launch_agent()
-                time.sleep(0.5)
+                time.sleep(2)
             if _is_auth_agent_running():
                 pkexec_possibilities = which(kls.PKEXEC_BIN)
                 leap_assert(len(pkexec_possibilities) > 0,
@@ -171,6 +175,7 @@ class LinuxVPNLauncher(VPNLauncher):
         """
         # we use `super` in order to send the class to use
         missing = super(LinuxVPNLauncher, kls).missing_other_files()
+        print "MISSING OTHER", missing
 
         if flags.STANDALONE:
             polkit_file = LinuxPolicyChecker.get_polkit_path()
