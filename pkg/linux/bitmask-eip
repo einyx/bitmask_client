@@ -1,0 +1,153 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# bitmask-root
+# Copyright (C) 2014 LEAP
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+Wrapper to call leap-fw and openvpn with privileges.
+"""
+import logging
+import os
+import subprocess
+import socket
+import sys
+
+
+"""
+Since we are running this *before* receiving the openvpn configuration pushed
+from the server, we have to hardcode the tunnel gateway, which happens to be
+the dns server to be allowed too.
+It does not matter for the moment since that's not configurable, but if this
+ever changes we might want to reconsider moving this script to be executed
+using the --up openvpn hook.
+"""
+
+VPN_GATEWAY = "10.42.0.1"
+print "VPN GATEWAY: ", VPN_GATEWAY
+
+DEBUG = os.getenv('DEBUG')
+if DEBUG:
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    ch.setFormatter(formatter)
+
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(ch)
+
+    logger.debug(' '.join(sys.argv))
+
+
+def is_valid_ipaddr(value):
+    """
+    Validate that the passed ip is a valid IP address.
+
+    :param value: the value to be validated
+    :type value: str
+    :rtype: bool
+    """
+    try:
+        socket.inet_aton(value)
+        return True
+    except Exception:
+        print "MALFORMED VPN GATEWAY: %s!" % value
+        return False
+
+"""
+The leap firewall path
+"""
+LEAP_FIREWALL = "/etc/leap/leap-fw"
+FW_START_ACTION = "start"
+FW_STOP_ACTION = "stop"
+
+
+def fw_up():
+    """
+    Bring the firewall up.
+    """
+    if is_valid_ipaddr(VPN_GATEWAY):
+        print "FIREWALL UP"
+        subprocess.Popen([LEAP_FIREWALL, FW_START_ACTION, VPN_GATEWAY])
+        return True
+
+
+def fw_down():
+    """
+    Tear the firewall down.
+    """
+    if is_valid_ipaddr(VPN_GATEWAY):
+        print "FIREWALL DOWN"
+        # XXX this should be modified to not need the gw to be passed
+        subprocess.Popen([LEAP_FIREWALL, FW_STOP_ACTION, VPN_GATEWAY])
+        return True
+
+
+OPENVPN_SYSTEM_BIN = "/usr/sbin/openvpn"  # Debian location
+OPENVPN_LEAP_BIN = "/usr/sbin/leap-openvpn"  # installed by bundle
+
+
+def get_openvpn_bin():
+    """
+    Return the path for whether the system openvpn or the one the
+    bundle has put there.
+    """
+    if os.path.isfile(OPENVPN_SYSTEM_BIN):
+        return OPENVPN_SYSTEM_BIN
+
+    # the bundle option should be removed from the debian package.
+    if os.path.isfile(OPENVPN_LEAP_BIN):
+        return OPENVPN_LEAP_BIN
+
+
+def get_openvpn_args():
+    """
+    Get a list of arguments to be passed to openvpn invocation.
+    """
+    # XXX sanitize
+    return sys.argv[2:]
+
+
+def openvpn_up():
+    """
+    Execute openvpn with the passed arguments.
+    """
+    openvpn_bin = get_openvpn_bin()
+    if not openvpn_bin:
+        return None
+    openvpn_args = get_openvpn_args()
+    subprocess.Popen([[openvpn_bin] + list(openvpn_args)])
+    return True
+
+
+def openvpn_down():
+    """
+    Send SIGTERM to leap's openvpn process.
+    """
+
+
+if __name__ == "__main__":
+
+    command = sys.argv[1]
+    action = sys.argv[2]
+
+    if command == "start":
+        if fw_up():
+            openvpn_up()
+
+    if command == "stop":
+        if openvpn_down():
+            fw_down()
