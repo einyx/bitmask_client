@@ -1540,6 +1540,7 @@ class MainWindow(QtGui.QMainWindow):
 
     @QtCore.Slot()
     def _on_eip_connection_connected(self):
+        # XXX move to services/eip, this does not belong to GUI
         """
         TRIGGERS:
             self._eip_status.eip_connection_connected
@@ -1813,7 +1814,6 @@ class MainWindow(QtGui.QMainWindow):
         signal = qtsigs.disconnected_signal
 
         # XXX check if these exitCodes are pkexec/cocoasudo specific
-        print "EXITCODE", exitCode, type(exitCode)
         if exitCode in (126, 127):
             eip_status_label = self.tr(
                 "{0} could not be launched "

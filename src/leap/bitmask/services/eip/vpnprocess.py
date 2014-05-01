@@ -17,6 +17,7 @@
 """
 VPN Manager, spawned in a custom processProtocol.
 """
+import commands
 import logging
 import os
 import shutil
@@ -39,7 +40,7 @@ from leap.bitmask.services.eip import get_vpn_launcher
 from leap.bitmask.services.eip.eipconfig import EIPConfig
 from leap.bitmask.services.eip.udstelnet import UDSTelnet
 from leap.bitmask.util import first
-from leap.bitmask.platform_init import IS_MAC
+from leap.bitmask.platform_init import IS_MAC, IS_LINUX
 from leap.common.check import leap_assert, leap_assert_type
 
 logger = logging.getLogger(__name__)
@@ -117,6 +118,7 @@ class VPNObserver(object):
             "process_restart_tls": self._signaler.EIP_PROCESS_RESTART_TLS,
             "process_restart_ping": self._signaler.EIP_PROCESS_RESTART_PING,
         }
+        # XXX add INITIALIZATION_COMPLETED to signaler
         return signals.get(event.lower())
 
 
@@ -578,8 +580,16 @@ class VPNManager(object):
         """
         Attempts to terminate openvpn by sending a SIGTERM.
         """
-        if self.is_connected():
-            self._send_command("signal SIGTERM")
+        if IS_LINUX:
+            # Transitioning to root wrapper script. Linux first.
+            KILLIT_COMMAND = "/usr/bin/pkexec /usr/sbin/bitmask-eip stop"
+            commands.getoutput(KILLIT_COMMAND)
+            exit_code = 0  # XXX should parse proc list here
+            self._signaler.signal(self._signaler.EIP_PROCESS_FINISHED,
+                                  exit_code)
+        else:
+            if self.is_connected():
+                self._send_command("signal SIGTERM")
         if shutdown:
             self._cleanup_tempfiles()
 
@@ -753,6 +763,7 @@ class VPNProcess(protocol.ProcessProtocol, VPNManager):
         """
         self._alive = True
         self.aborted = False
+        print "CONN MADE... TRY TO CONNECT TO MANAGEMENT..."
         self.try_to_connect_to_management(max_retries=10)
 
     def outReceived(self, data):
@@ -774,11 +785,12 @@ class VPNProcess(protocol.ProcessProtocol, VPNManager):
 
         .. seeAlso: `http://twistedmatrix.com/documents/13.0.0/api/twisted.internet.protocol.ProcessProtocol.html` # noqa
         """
-        exit_code = reason.value.exitCode
-        if isinstance(exit_code, int):
-            logger.debug("processExited, status %d" % (exit_code,))
-        self._signaler.signal(self._signaler.EIP_PROCESS_FINISHED, exit_code)
-        self._alive = False
+        pass
+        #exit_code = reason.value.exitCode
+        #if isinstance(exit_code, int):
+            #logger.debug("processExited, status %d" % (exit_code,))
+        #self._signaler.signal(self._signaler.EIP_PROCESS_FINISHED, exit_code)
+        #self._alive = False
 
     def processEnded(self, reason):
         """
@@ -797,15 +809,19 @@ class VPNProcess(protocol.ProcessProtocol, VPNManager):
         """
         Polls connection status.
         """
-        if self._alive:
-            self.get_status()
+        # XXX have to keep track of alive in another fashion, wrapper uses
+        # short-lived process now.
+        #if self._alive:
+        self.get_status()
 
     def pollState(self):
         """
         Polls connection state.
         """
-        if self._alive:
-            self.get_state()
+        # XXX have to keep track of alive in another fashion, wrapper uses
+        # short-lived process now.
+        #if self._alive:
+        self.get_state()
 
     # launcher
 

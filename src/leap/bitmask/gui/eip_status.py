@@ -240,6 +240,7 @@ class EIPStatusWidget(QtGui.QWidget):
         Triggered when the app activates eip.
         Hides the status box and disables the start/stop button.
         """
+        print "EIP PRE UP"
         self.set_startstop_enabled(False)
 
     @QtCore.Slot()
@@ -253,6 +254,7 @@ class EIPStatusWidget(QtGui.QWidget):
         # it won't work. it's under the claws of the state machine.
         # probably the best thing would be to make a conditional
         # transition there, but that's more involved.
+        print "DISABLE EIP..."
         self.eip_button.hide()
         msg = self.tr("You must login to use {0}".format(self._service_name))
         self.eip_label.setText(msg)
@@ -275,6 +277,7 @@ class EIPStatusWidget(QtGui.QWidget):
         """
         #logger.debug('Showing EIP start button')
         self.eip_button.show()
+        print "SHOWING EIP BUTTON ....."
 
         # Restore the eip action menu
         menu = self._systray.contextMenu()
@@ -349,6 +352,7 @@ class EIPStatusWidget(QtGui.QWidget):
         self.ui.lblEIPMessage.setText(
             self.tr("Traffic is being routed in the clear"))
         self.ui.lblEIPStatus.show()
+
 
     @QtCore.Slot(dict)
     def update_vpn_status(self, data=None):

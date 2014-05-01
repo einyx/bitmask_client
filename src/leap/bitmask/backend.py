@@ -305,7 +305,7 @@ class EIP(object):
 
     def _start_eip(self):
         """
-        Start EIP
+        Start EIP.
         """
         provider_config = self._provider_config
         eip_config = eipconfig.EIPConfig()
