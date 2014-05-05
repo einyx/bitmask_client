@@ -39,6 +39,7 @@ cmdcheck = subprocess.check_output
 ##
 
 OPENVPN = "/usr/sbin/openvpn"
+IP = "/bin/ip"
 IPTABLES = "/sbin/iptables"
 IP6TABLES = "/sbin/ip6tables"
 UPDATE_RESOLV_CONF = "/etc/openvpn/update-resolv-conf"
