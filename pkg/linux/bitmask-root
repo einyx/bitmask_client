@@ -26,6 +26,7 @@ USAGE:
   bitmask-root openvpn stop
   bitmask-root openvpn start CONFIG1 CONFIG1 ...
 """
+from __future__ import print_function
 import os
 import subprocess
 import socket
@@ -91,7 +92,6 @@ if DEBUG:
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
     logger.addHandler(ch)
-    logger.debug(" ".join(sys.argv))
 
 ##
 ## UTILITY
@@ -110,7 +110,7 @@ def is_valid_address(value):
         socket.inet_aton(value)
         return True
     except Exception:
-        print "MALFORMED IP: %s!" % value
+        print("MALFORMED IP: %s!" % value)
         return False
 
 
@@ -151,7 +151,7 @@ def run(command, *args, **options):
     parts = [command]
     parts.extend(args)
     if DEBUG:
-        print "run: " + " ".join(parts)
+        print("run: " + " ".join(parts))
     if not options.get("check", True) or options.get("detach", False):
         subprocess.Popen(parts)
     else:
@@ -185,19 +185,19 @@ def parse_openvpn_flags(args):
                 if len(required_params) > 0:
                     flag_params = flag[1:]
                     if len(flag_params) != len(required_params):
-                        print "ERROR: not enough params for %s" % flag_name
+                        print("ERROR: not enough params for %s" % flag_name)
                         return None
                     for param, param_type in zip(flag_params, required_params):
                         if PARAM_FORMATS[param_type](param):
                             result.append(param)
                         else:
-                            print "ERROR: Bad argument %s" % param
+                            print("ERROR: Bad argument %s" % param)
                             return None
             else:
-                print "WARNING: unrecognized openvpn flag %s" % flag_name
+                print("WARNING: unrecognized openvpn flag %s" % flag_name)
         return result
     except Exception as ex:
-        print ex
+        print(ex)
         return None
 
 
@@ -211,7 +211,7 @@ def openvpn_start(args):
 
 
 def openvpn_stop(args):
-    print "stop"
+    print("stop")
 
 ##
 ## FIREWALL
@@ -345,6 +345,11 @@ def firewall_stop(args):
 
 
 def bail(msg=""):
+    """
+    Abnormal exit.
+    :param msg: optional error message.
+    :type msg: str
+    """
     if msg:
         print(msg)
     exit(1)
@@ -368,6 +373,8 @@ def main():
         bail("no such command")
 
 if __name__ == "__main__":
+    if DEBUG:
+        logger.debug(" ".join(sys.argv))
     main()
-    print "done"
+    print("done")
     exit(0)
