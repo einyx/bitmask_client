@@ -39,11 +39,19 @@ cmdcheck = subprocess.check_output
 ## CONSTANTS
 ##
 
-OPENVPN = "/usr/sbin/openvpn"
+OPENVPN_SYSTEM_BIN = "/usr/sbin/openvpn"  # Debian location
+OPENVPN_LEAP_BIN = "/usr/sbin/leap-openvpn"  # installed by bundle
+
 IP = "/bin/ip"
 IPTABLES = "/sbin/iptables"
 IP6TABLES = "/sbin/ip6tables"
-UPDATE_RESOLV_CONF = "/etc/openvpn/update-resolv-conf"
+
+RESOLVCONF_BIN = "/sbin/resolvconf"
+"""
+The path to the script to update resolv.conf
+"""
+LEAP_UPDATE_RESOLVCONF_FILE = "/etc/leap/update-resolv-conf"
+LEAP_RESOLV_UPDATE = "/etc/leap/resolv-update"
 
 FIXED_FLAGS = [
     "--setenv", "LEAPOPENVPN", "1",
@@ -54,8 +62,11 @@ FIXED_FLAGS = [
     "--remote-cert-tls", "server",
     "--management-signal",
     "--management", "/tmp/openvpn.socket", "unix",
-    "--up", UPDATE_RESOLV_CONF,
-    "--down", UPDATE_RESOLV_CONF,
+
+    # XXX this has to check if we have a valid resolvconf, and use
+    # the old resolv-update if not.
+    "--up", LEAP_UPDATE_RESOLVCONF_FILE,
+    "--down", LEAP_UPDATE_RESOLVCONF_FILE,
     "--script-security", "2"
 ]
 
@@ -113,6 +124,33 @@ def is_valid_address(value):
     except Exception:
         print("MALFORMED IP: %s!" % value)
         return False
+
+
+def has_system_resolvconf():
+    """
+    Return True if resolvconf is found in the system.
+
+    :rtype: bool
+    """
+    return os.path.isfile(RESOLVCONF_BIN)
+
+
+def has_valid_update_resolvconf():
+    """
+    Return True if a valid update-resolv-conf script is found in the system.
+
+    :rtype: bool
+    """
+    return os.path.isfile(LEAP_UPDATE_RESOLVCONF_FILE)
+
+
+def has_valid_leap_resolv_update():
+    """
+    Return True if a valid resolv-update script is found in the system.
+
+    :rtype: bool
+    """
+    return os.path.isfile(LEAP_RESOLV_UPDATE)
 
 
 def split_list(_list, regex):
@@ -177,6 +215,19 @@ def run(command, *args, **options):
 ##
 
 
+def get_openvpn_bin():
+    """
+    Return the path for either the system openvpn or the one the
+    bundle has put there.
+    """
+    if os.path.isfile(OPENVPN_SYSTEM_BIN):
+        return OPENVPN_SYSTEM_BIN
+
+    # the bundle option should be removed from the debian package.
+    if os.path.isfile(OPENVPN_LEAP_BIN):
+        return OPENVPN_LEAP_BIN
+
+
 def parse_openvpn_flags(args):
     """
     Take argument list from the command line and parse it, only allowing some
@@ -219,6 +270,7 @@ def openvpn_start(args):
     """
     openvpn_flags = parse_openvpn_flags(args)
     if openvpn_flags:
+        OPENVPN = get_openvpn_bin()
         flags = FIXED_FLAGS + openvpn_flags
         run(OPENVPN, *flags, detach=True)
     else:
@@ -447,9 +499,9 @@ def main():
         elif command == "firewall_stop":
             firewall_stop()
         else:
-            bail("no such command")
+            bail("No such command")
     else:
-        bail("no such command")
+        bail("No such command")
 
 if __name__ == "__main__":
     if DEBUG:
