@@ -151,7 +151,7 @@ def run(command, *args, **options):
     parts.extend(args)
     if DEBUG:
         print "run: " + " ".join(parts)
-    if options.get("check", True) == False or options.get("detach", False) == True:
+    if not options.get("check", True) or options.get("detach", False):
         subprocess.Popen(parts)
     else:
         try:
@@ -159,7 +159,7 @@ def run(command, *args, **options):
             subprocess.check_call(parts, stdout=devnull, stderr=devnull)
             return 0
         except subprocess.CalledProcessError as ex:
-            if options.get("exitcode", False) == True:
+            if options.get("exitcode", False):
                 return ex.returncode
             else:
                 bail("Could not run %s: %s" % (ex.cmd, ex.output))
