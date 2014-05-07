@@ -49,13 +49,14 @@ cmdcheck = subprocess.check_output
 ## CONSTANTS
 ##
 
+SCRIPT = "bitmask-root"
 NAMESERVER = "10.42.0.1"
 
 IP = "/bin/ip"
 IPTABLES = "/sbin/iptables"
 IP6TABLES = "/sbin/ip6tables"
 RESOLVCONF = "/sbin/resolvconf"
-MANAGEMENT_SOCKET = "/tmp/openvpn.socket"
+#MANAGEMENT_SOCKET = "/tmp/openvpn.socket"
 OPENVPN_USER = "nobody"
 OPENVPN_GROUP = "nogroup"
 
@@ -80,17 +81,19 @@ FIXED_FLAGS = [
     "--tls-client",
     "--remote-cert-tls", "server",
     "--management-signal",
-    "--management", MANAGEMENT_SOCKET, "unix",
     "--script-security", "1"
     "--user", "nobody",
     "--group", "nogroup",
 ]
+
+#    "--management", MANAGEMENT_SOCKET, "unix",
 
 ALLOWED_FLAGS = {
     "--remote": ["IP", "NUMBER", "PROTO"],
     "--tls-cipher": ["CIPHER"],
     "--cipher": ["CIPHER"],
     "--auth": ["CIPHER"],
+    "--management": ["DIR", "UNIXSOCKET"],
     "--management-client-user": ["USER"],
     "--cert": ["FILE"],
     "--key": ["FILE"],
@@ -104,7 +107,9 @@ PARAM_FORMATS = {
     "CIPHER": lambda s: re.match("^[A-Z0-9-]+$", s),
     "USER": lambda s: re.match(
         "^[a-zA-Z0-9_\.\@][a-zA-Z0-9_\-\.\@]*\$?$", s),  # IEEE Std 1003.1-2001
-    "FILE": lambda s: os.path.isfile(s)
+    "FILE": lambda s: os.path.isfile(s),
+    "DIR": lambda s: os.path.isdir(os.path.split(s)[0]),
+    "UNIXSOCKET": lambda s: s == "unix"
 }
 
 
@@ -326,6 +331,9 @@ def openvpn_start(args):
     if openvpn_flags:
         OPENVPN = get_openvpn_bin()
         flags = [OPENVPN] + FIXED_FLAGS + openvpn_flags
+        if DEBUG:
+            print("%s: running openvpn with flags:" % (SCRIPT,))
+            print(flags)
         # note: first argument to command is ignored, but customarily set to
         # the command.
         os.execv(OPENVPN, flags)
@@ -605,5 +613,5 @@ if __name__ == "__main__":
     if DEBUG:
         logger.debug(" ".join(sys.argv))
     main()
-    print("done")
+    print("%s: done" % (SCRIPT,))
     exit(0)
