@@ -25,13 +25,23 @@ USAGE:
   bitmask-root firewall start GATEWAY1 GATEWAY2 ...
   bitmask-root openvpn stop
   bitmask-root openvpn start CONFIG1 CONFIG1 ...
+
+All actions return exit code 0 for success, non-zero otherwise.
+
+The `openvpn start` action is special: it calls exec on openvpn and replaces
+the current process.
 """
 from __future__ import print_function
 import os
+import re
 import subprocess
 import socket
 import sys
-import re
+import traceback
+
+
+# XXX not standard
+import psutil
 
 cmdcheck = subprocess.check_output
 
@@ -39,17 +49,26 @@ cmdcheck = subprocess.check_output
 ## CONSTANTS
 ##
 
-OPENVPN_SYSTEM_BIN = "/usr/sbin/openvpn"  # Debian location
-OPENVPN_LEAP_BIN = "/usr/sbin/leap-openvpn"  # installed by bundle
+NAMESERVER = "10.42.0.1"
 
 IP = "/bin/ip"
 IPTABLES = "/sbin/iptables"
 IP6TABLES = "/sbin/ip6tables"
+RESOLVCONF = "/sbin/resolvconf"
+MANAGEMENT_SOCKET = "/tmp/openvpn.socket"
+OPENVPN_USER = "nobody"
+OPENVPN_GROUP = "nogroup"
 
-RESOLVCONF_BIN = "/sbin/resolvconf"
+LEAPOPENVPN = "LEAPOPENVPN"
+OPENVPN_SYSTEM_BIN = "/usr/sbin/openvpn"  # Debian location
+OPENVPN_LEAP_BIN = "/usr/sbin/leap-openvpn"  # installed by bundle
+
+
 """
 The path to the script to update resolv.conf
 """
+# XXX We have to check if we have a valid resolvconf, and use
+# the old resolv-update if not.
 LEAP_UPDATE_RESOLVCONF_FILE = "/etc/leap/update-resolv-conf"
 LEAP_RESOLV_UPDATE = "/etc/leap/resolv-update"
 
@@ -61,13 +80,10 @@ FIXED_FLAGS = [
     "--tls-client",
     "--remote-cert-tls", "server",
     "--management-signal",
-    "--management", "/tmp/openvpn.socket", "unix",
-
-    # XXX this has to check if we have a valid resolvconf, and use
-    # the old resolv-update if not.
-    "--up", LEAP_UPDATE_RESOLVCONF_FILE,
-    "--down", LEAP_UPDATE_RESOLVCONF_FILE,
-    "--script-security", "2"
+    "--management", MANAGEMENT_SOCKET, "unix",
+    "--script-security", "1"
+    "--user", "nobody",
+    "--group", "nogroup",
 ]
 
 ALLOWED_FLAGS = {
@@ -93,6 +109,7 @@ PARAM_FORMATS = {
 
 
 DEBUG = os.getenv("DEBUG")
+TEST = os.getenv("TEST")
 
 if DEBUG:
     import logging
@@ -132,7 +149,7 @@ def has_system_resolvconf():
 
     :rtype: bool
     """
-    return os.path.isfile(RESOLVCONF_BIN)
+    return os.path.isfile(RESOLVCONF)
 
 
 def has_valid_update_resolvconf():
@@ -184,31 +201,60 @@ def split_list(_list, regex):
             break
     return result
 
-# i think this is not needed with shell=False
-#def sanify(command, *args):
-#    return [command] + [pipes.quote(a) for a in args]
-
 
 def run(command, *args, **options):
     """
-    Run a command in a subprocess, with passed arguments and options.
+    Run an external command.
+
+    Options:
+
+      `check`: If True, check the command's output. bail if non-zero. (the
+               default is true unless detach or input is true)
+      `exitcode`: like `check`, but return exitcode instead of bailing.
+      `detach`: If True, run in detached process.
+      `input`: If True, open command for writing stream to, returning the Popen
+               object.
     """
     parts = [command]
     parts.extend(args)
-    if DEBUG:
+    if TEST or DEBUG:
         print("run: " + " ".join(parts))
-    if not options.get("check", True) or options.get("detach", False):
-        subprocess.Popen(parts)
+
+    _check = options.get("check", True)
+    _detach = options.get("detach", False)
+    _input = options.get("input", False)
+    _exitcode = options.get("exitcode", False)
+
+    if not _check or _detach or _input:
+        if _input:
+            return subprocess.Popen(parts, stdin=subprocess.PIPE)
+        else:
+            # XXX ok with return None ??
+            subprocess.Popen(parts)
     else:
         try:
             devnull = open('/dev/null', 'w')
             subprocess.check_call(parts, stdout=devnull, stderr=devnull)
             return 0
         except subprocess.CalledProcessError as ex:
-            if options.get("exitcode", False):
+            if _exitcode:
                 return ex.returncode
             else:
                 bail("Could not run %s: %s" % (ex.cmd, ex.output))
+
+
+def bail(msg=None, exception=None):
+    """
+    Abnormal exit.
+
+    :param msg: optional error message.
+    :type msg: str
+    """
+    if msg is not None:
+        print(msg)
+    if exception is not None:
+        traceback.princ_exc()
+    exit(1)
 
 ##
 ## OPENVPN
@@ -242,7 +288,7 @@ def parse_openvpn_flags(args):
             if flag_name in ALLOWED_FLAGS:
                 result.append(flag_name)
                 required_params = ALLOWED_FLAGS[flag_name]
-                if len(required_params) > 0:
+                if required_params:
                     flag_params = flag[1:]
                     if len(flag_params) != len(required_params):
                         print("ERROR: not enough params for %s" % flag_name)
@@ -263,16 +309,19 @@ def parse_openvpn_flags(args):
 
 def openvpn_start(args):
     """
-    Start openvpn.
+    Launch openvpn, sanitizing input, and replacing the current process with
+    the openvpn process.
 
-    :param args: arguments to openvpn
+    :param args: arguments to be passed to openvpn
     :type args: list
     """
     openvpn_flags = parse_openvpn_flags(args)
     if openvpn_flags:
         OPENVPN = get_openvpn_bin()
-        flags = FIXED_FLAGS + openvpn_flags
-        run(OPENVPN, *flags, detach=True)
+        flags = [OPENVPN] + FIXED_FLAGS + openvpn_flags
+        # note: first argument to command is ignored, but customarily set to
+        # the command.
+        os.execv(OPENVPN, flags)
     else:
         bail('ERROR: could not parse openvpn options')
 
@@ -284,8 +333,42 @@ def openvpn_stop(args):
     :param args: arguments to openvpn
     :type args: list
     """
-    # XXX
-    print("Stop")
+    # XXX this deps on psutil, which is not there in the bundle
+    # case. We could try to manually parse proc system.
+    for proc in psutil.process_iter():
+        if LEAPOPENVPN in proc.cmdline:
+            # FIXME naive approach. this will kill try to kill *anythin*, we
+            # should check that the command is openvpn. -- kali
+            proc.terminate()
+
+##
+## DNS
+##
+
+
+def set_dns_nameserver(ip_address):
+    """
+    Add the tunnel DNS server to `resolv.conf`
+
+    :param ip_address: the ip to add to `resolv.conf`
+    :type ip_address: str
+    """
+    if os.path.isfile(RESOLVCONF):
+        process = run(RESOLVCONF, "-a", "bitmask", input=True)
+        process.communicate("nameserver %s\n" % ip_address)
+    else:
+        bail("ERROR: package openresolv or resolvconf not installed.")
+
+
+def restore_dns_nameserver():
+    """
+    Remove tunnel DNS server from `resolv.conf`
+    """
+    if os.path.isfile(RESOLVCONF):
+        run(RESOLVCONF, "-d", "bitmask")
+    else:
+        print("ERROR: package openresolv or resolvconf not installed.")
+
 
 ##
 ## FIREWALL
@@ -315,7 +398,7 @@ def get_default_device():
     """
     routes = subprocess.check_output([IP, "route", "show"])
     match = re.search("^default .*dev ([^\s]*) .*$", routes, flags=re.M)
-    if len(match.groups()) >= 1:
+    if match.groups():
         return match.group(1)
     else:
         bail("Could not find default device")
@@ -330,7 +413,7 @@ def get_local_network_ipv4(device):
     """
     addresses = cmdcheck([IP, "-o", "address", "show", "dev", device])
     match = re.search("^.*inet ([^ ]*) .*$", addresses, flags=re.M)
-    if len(match.groups()) >= 1:
+    if match.groups():
         return match.group(1)
     else:
         return None
@@ -345,7 +428,7 @@ def get_local_network_ipv6(device):
     """
     addresses = cmdcheck([IP, "-o", "address", "show", "dev", device])
     match = re.search("^.*inet6 ([^ ]*) .*$", addresses, flags=re.M)
-    if len(match.groups()) >= 1:
+    if match.groups():
         return match.group(1)
     else:
         return None
@@ -473,35 +556,42 @@ def firewall_stop():
         ip6tables("--flush", "bitmask")
         ip6tables("--delete-chain", "bitmask")
 
-
-def bail(msg=""):
-    """
-    Abnormal exit.
-
-    :param msg: optional error message.
-    :type msg: str
-    """
-    if msg:
-        print(msg)
-    exit(1)
+##
+## MAIN
+##
 
 
 def main():
     if len(sys.argv) >= 3:
         command = "_".join(sys.argv[1:3])
         args = sys.argv[3:]
+
         if command == "openvpn_start":
             openvpn_start(args)
+
         elif command == "openvpn_stop":
             openvpn_stop(args)
+
         elif command == "firewall_start":
-            firewall_start(args)
+            try:
+                firewall_start(args)
+                set_dns_nameserver(NAMESERVER)
+            except Exception as ex:
+                restore_dns_nameserver()
+                firewall_stop()
+                bail("ERROR: could not start firewall", ex)
+
         elif command == "firewall_stop":
-            firewall_stop()
+            try:
+                restore_dns_nameserver()
+                firewall_stop()
+            except Exception as ex:
+                bail("ERROR: could not stop firewall", ex)
+
         else:
-            bail("No such command")
+            bail("ERROR: No such command")
     else:
-        bail("No such command")
+        bail("ERROR: No such command")
 
 if __name__ == "__main__":
     if DEBUG:
