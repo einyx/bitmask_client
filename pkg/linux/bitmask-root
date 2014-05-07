@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 #
 # Copyright (C) 2014 LEAP
@@ -31,6 +31,8 @@ All actions return exit code 0 for success, non-zero otherwise.
 The `openvpn start` action is special: it calls exec on openvpn and replaces
 the current process.
 """
+# TODO should be tested with python3, which can be the default on some distro.
+
 from __future__ import print_function
 import os
 import re
