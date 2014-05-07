@@ -82,7 +82,7 @@ FIXED_FLAGS = [
     "--tls-client",
     "--remote-cert-tls", "server",
     "--management-signal",
-    "--script-security", "1"
+    "--script-security", "1",
     "--user", "nobody",
     "--group", "nogroup",
 ]
