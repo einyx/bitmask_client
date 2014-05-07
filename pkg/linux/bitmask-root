@@ -145,7 +145,7 @@ def is_valid_address(value):
         socket.inet_aton(value)
         return True
     except Exception:
-        print("MALFORMED IP: %s!" % value)
+        print("%s: ERROR: MALFORMED IP: %s!" % (SCRIPT, value))
         return False
 
 
@@ -246,7 +246,7 @@ def run(command, *args, **options):
     parts = [command]
     parts.extend(args)
     if TEST or DEBUG:
-        print("run: " + " ".join(parts))
+        print("%s run: %s " (SCRIPT, " ".join(parts)))
 
     _check = options.get("check", True)
     _detach = options.get("detach", False)
@@ -270,7 +270,7 @@ def run(command, *args, **options):
             if _exitcode:
                 return exc.returncode
             else:
-                bail("Could not run %s: %s" % (exc.cmd, exc.output),
+                bail("ERROR: Could not run %s: %s" % (exc.cmd, exc.output),
                      exception=exc)
 
 
@@ -282,7 +282,7 @@ def bail(msg=None, exception=None):
     :type msg: str
     """
     if msg is not None:
-        print(msg)
+        print("%s: %s" % (SCRIPT, msg))
     if exception is not None:
         traceback.print_exc()
     exit(1)
@@ -322,19 +322,21 @@ def parse_openvpn_flags(args):
                 if required_params:
                     flag_params = flag[1:]
                     if len(flag_params) != len(required_params):
-                        print("ERROR: not enough params for %s" % flag_name)
+                        print("%s: ERROR: not enough params for %s" %
+                              (SCRIPT, flag_name))
                         return None
                     for param, param_type in zip(flag_params, required_params):
                         if PARAM_FORMATS[param_type](param):
                             result.append(param)
                         else:
-                            print("ERROR: Bad argument %s" % param)
+                            print("%s: ERROR: Bad argument %s" %
+                                  (SCRIPT, param))
                             return None
             else:
                 print("WARNING: unrecognized openvpn flag %s" % flag_name)
         return result
     except Exception as exc:
-        print("ERROR PARSING FLAGS: ", exc)
+        print("%s: ERROR PARSING FLAGS: %s" % (SCRIPT, exc))
         if DEBUG:
             logger.exception(exc)
         return None
@@ -405,7 +407,8 @@ def restore_dns_nameserver():
     if os.path.isfile(RESOLVCONF):
         run(RESOLVCONF, "-d", "bitmask")
     else:
-        print("ERROR: package openresolv or resolvconf not installed.")
+        print("%s: ERROR: package openresolv or resolvconf not installed." %
+              (SCRIPT,))
 
 
 ##
@@ -421,10 +424,9 @@ def get_gateways(gateways):
     :type gateways: iterable
     :rtype: iterable
     """
-    print("GETTING GATEWAYS ->", gateways)
     result = filter(is_valid_address, gateways)
     if not result:
-        bail("No valid gateways specified")
+        bail("ERROR: No valid gateways specified")
     else:
         return result
 
