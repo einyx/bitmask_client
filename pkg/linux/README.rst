@@ -8,4 +8,3 @@ In GNU/Linux, we expect these files to be in place::
 
  bitmask-root -> /usr/sbin/bitmask-root
  polkit/se.leap.bitmask.policy -> /usr/share/polkit-1/actions/se.leap.bitmask.policy
- polkit/net.openvpn.gui.leap.policy -> /usr/share/polkit-1/actions/net.openvpn.gui.leap.policy
