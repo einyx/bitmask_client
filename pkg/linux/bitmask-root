@@ -51,6 +51,7 @@ cmdcheck = subprocess.check_output
 
 SCRIPT = "bitmask-root"
 NAMESERVER = "10.42.0.1"
+BITMASK_CHAIN = "bitmask"
 
 IP = "/bin/ip"
 IPTABLES = "/sbin/iptables"
@@ -521,7 +522,7 @@ def firewall_start(args):
     """
     Bring up the firewall.
 
-    :param args: arguments passed to the wrapper.
+    :param args: list of gateways, to be sanitized.
     :type args: list
     """
     default_device = get_default_device()
@@ -530,30 +531,33 @@ def firewall_start(args):
     gateways = get_gateways(args)
 
     # add custom chain "bitmask"
-    if not ipv4_chain_exists("bitmask"):
-        ip4tables("--new-chain", "bitmask")
-    if not ipv6_chain_exists("bitmask"):
-        ip6tables("--new-chain", "bitmask")
-    iptables("--insert", "OUTPUT", "--jump", "bitmask")
+    if not ipv4_chain_exists(BITMASK_CHAIN):
+        ip4tables("--new-chain", BITMASK_CHAIN)
+    if not ipv6_chain_exists(BITMASK_CHAIN):
+        ip6tables("--new-chain", BITMASK_CHAIN)
+    iptables("--insert", "OUTPUT", "--jump", BITMASK_CHAIN)
 
     # reject everything
-    iptables("--insert", "bitmask", "-o", default_device, "--jump", "REJECT")
+    iptables("--insert", BITMASK_CHAIN, "-o", default_device,
+             "--jump", "REJECT")
 
     # allow traffic to gateways
     for gateway in gateways:
-        ip4tables("--insert", "bitmask", "--destination", gateway,
+        ip4tables("--insert", BITMASK_CHAIN, "--destination", gateway,
                   "-o", default_device, "--jump", "ACCEPT")
 
     # allow traffic to IPs on local network
     if local_network_ipv4:
-        ip4tables("--insert", "bitmask", "--destination", local_network_ipv4,
-                  "-o", default_device, "--jump", "ACCEPT")
+        ip4tables("--insert", BITMASK_CHAIN,
+                  "--destination", local_network_ipv4, "-o", default_device,
+                  "--jump", "ACCEPT")
     if local_network_ipv6:
-        ip6tables("--insert", "bitmask", "--destination", local_network_ipv6,
-                  "-o", default_device, "--jump", "ACCEPT")
+        ip6tables("--insert", BITMASK_CHAIN,
+                  "--destination", local_network_ipv6, "-o", default_device,
+                  "--jump", "ACCEPT")
 
     # block DNS requests to anyone but the service provider or localhost
-    ip4tables("--insert", "bitmask", "--protocol", "udp", "--dport", "53",
+    ip4tables("--insert", BITMASK_CHAIN, "--protocol", "udp", "--dport", "53",
               "--jump", "REJECT")
     for allowed_dns in gateways + ["127.0.0.1", "127.0.1.1"]:
         ip4tables("--insert", "bitmask", "--protocol", "udp", "--dport", "53",
@@ -564,13 +568,13 @@ def firewall_stop():
     """
     Stop the firewall.
     """
-    iptables("--delete", "OUTPUT", "--jump", "bitmask")
-    if ipv4_chain_exists("bitmask"):
-        ip4tables("--flush", "bitmask")
-        ip4tables("--delete-chain", "bitmask")
-    if ipv6_chain_exists("bitmask"):
-        ip6tables("--flush", "bitmask")
-        ip6tables("--delete-chain", "bitmask")
+    iptables("--delete", "OUTPUT", "--jump", BITMASK_CHAIN)
+    if ipv4_chain_exists(BITMASK_CHAIN):
+        ip4tables("--flush", BITMASK_CHAIN)
+        ip4tables("--delete-chain", BITMASK_CHAIN)
+    if ipv6_chain_exists(BITMASK_CHAIN):
+        ip6tables("--flush", BITMASK_CHAIN)
+        ip6tables("--delete-chain", BITMASK_CHAIN)
 
 ##
 ## MAIN
