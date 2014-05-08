@@ -110,8 +110,15 @@ class LinuxVPNLauncher(VPNLauncher):
 
     POLKIT_PATH = LinuxPolicyChecker.get_polkit_path()
 
+    if flags.STANDALONE:
+        RESOLVCONF_BIN_PATH = "/usr/local/sbin/leap-resolvconf"
+    else:
+        # this only will work with debian/ubuntu distros.
+        RESOLVCONF_BIN_PATH = "/sbin/resolvconf"
+
     # XXX openvpn binary TOO
-    OTHER_FILES = (POLKIT_PATH, BITMASK_ROOT, OPENVPN_BIN_PATH)
+    OTHER_FILES = (POLKIT_PATH, BITMASK_ROOT, OPENVPN_BIN_PATH,
+                   RESOLVCONF_BIN_PATH)
 
     @classmethod
     def maybe_pkexec(kls):
@@ -143,20 +150,20 @@ class LinuxVPNLauncher(VPNLauncher):
             logger.warning("System has no pkexec")
             raise EIPNoPkexecAvailable()
 
-    @classmethod
-    def missing_other_files(kls):
-        """
-        'Extend' the VPNLauncher's missing_other_files to check if the polkit
-        files is outdated, in the case of an standalone bundle.
-        If the polkit file that is in OTHER_FILES exists but is not up to date,
-        it is added to the missing list.
-
-        :returns: a list of missing files
-        :rtype: list of str
-        """
+    #@classmethod
+    #def missing_other_files(kls):
+        #"""
+        #'Extend' the VPNLauncher's missing_other_files to check if the polkit
+        #files is outdated, in the case of an standalone bundle.
+        #If the polkit file that is in OTHER_FILES exists but is not up to date,
+        #it is added to the missing list.
+#
+        #:returns: a list of missing files
+        #:rtype: list of str
+        #"""
         # we use `super` in order to send the class to use
-        missing = super(LinuxVPNLauncher, kls).missing_other_files()
-        return missing
+        #missing = super(LinuxVPNLauncher, kls).missing_other_files()
+        #return missing
 
     @classmethod
     def get_vpn_command(kls, eipconfig, providerconfig, socket_host,
@@ -211,25 +218,32 @@ class LinuxVPNLauncher(VPNLauncher):
         """
         # no system config for now
         # sys_config = kls.SYSTEM_CONFIG
-        split = os.path.split
-
-        polkit_file = split(kls.POLKIT_PATH)[-1]
-        openvpn_bin_file = split(kls.OPENVPN_BIN_PATH)
-        bitmask_root_file = split(kls.BITMASK_ROOT_PATH)
+        (polkit_file, openvpn_bin_file,
+         bitmask_root_file, resolvconf_bin_file) = map(
+            lambda p: os.path.split(p)[-1],
+            (kls.POLKIT_PATH, kls.OPENVPN_BIN_PATH,
+             kls.BITMASK_ROOT, kls.RESOLVCONF_BIN_PATH))
 
         cmd = '#!/bin/sh\n'
+        cmd += 'mkdir -p /usr/local/sbin\n'
+
         cmd += 'cp "%s" "%s"\n' % (os.path.join(frompath, polkit_file),
                                    kls.POLKIT_PATH)
         cmd += 'chmod 644 "%s"\n' % (kls.POLKIT_PATH, )
 
         cmd += 'cp "%s" "%s"\n' % (os.path.join(frompath, bitmask_root_file),
-                                   kls.BITMASK_ROOT_PATH)
-        cmd += 'chmod 744 "%s"\n' % (kls.BITMASK_ROOT_PATH, )
+                                   kls.BITMASK_ROOT)
+        cmd += 'chmod 744 "%s"\n' % (kls.BITMASK_ROOT, )
 
         if flags.STANDALONE:
             cmd += 'cp "%s" "%s"\n' % (
                 os.path.join(frompath, openvpn_bin_file),
                 kls.OPENVPN_BIN_PATH)
+            cmd += 'chmod 744 "%s"\n' % (kls.POLKIT_PATH, )
+
+            cmd += 'cp "%s" "%s"\n' % (
+                os.path.join(frompath, resolvconf_bin_file),
+                kls.RESOLVCONF_BIN_PATH)
             cmd += 'chmod 744 "%s"\n' % (kls.POLKIT_PATH, )
         return cmd
 
