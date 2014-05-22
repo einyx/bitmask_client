@@ -421,7 +421,7 @@ class MainWindow(QtGui.QMainWindow):
                                 self._finish_eip_bootstrap)
 
         ###################################################
-        # Add tracked signals above this, untracked bellow!
+        # Add tracked signals above this, untracked below!
         ###################################################
         if only_tracked:
             return
@@ -1688,8 +1688,8 @@ class MainWindow(QtGui.QMainWindow):
         Stops vpn process and makes gui adjustments to reflect
         the change of state.
 
-        :param abnormal: whether this was an abnormal termination.
-        :type abnormal: bool
+        :param restart: whether this is part of a eip restart.
+        :type restart: bool
         """
         self.user_stopped_eip = not restart
         self._backend.eip_stop(restart=restart)
@@ -1729,10 +1729,26 @@ class MainWindow(QtGui.QMainWindow):
 
         Restart the connection.
         """
-        # for some reason, emitting the do_disconnect/do_connect
-        # signals hangs the UI.
-        self._stop_eip(restart=True)
-        QtCore.QTimer.singleShot(2000, self._start_EIP)
+        qtsigs = self._eip_connection.qtsigs
+        qtsigs.connecting_signal.disconnect(self._start_EIP)
+        qtsigs.disconnecting_signal.disconnect(self._stop_eip)
+
+        def do_start():
+            QtCore.QTimer.singleShot(3000, self._start_EIP)
+
+        def do_stop():
+            self._stop_eip(restart=True)
+
+        qtsigs.connecting_signal.connect(do_start)
+        qtsigs.disconnecting_signal.connect(do_stop)
+
+        def reconnect():
+            qtsigs.connecting_signal.disconnect(self._start_EIP)
+            qtsigs.disconnecting_signal.disconnect(self._stop_eip)
+
+        QtCore.QTimer.singleShot(3000, reconnect)
+        print "MAIN: (do_eip_restart) sending restart signal"
+        qtsigs.do_disconnect_signal.emit()
 
     def _set_eipstatus_off(self, error=True):
         """

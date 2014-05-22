@@ -350,6 +350,7 @@ class EIP(object):
             return
 
         host, port = get_openvpn_management()
+        print "BACKEND: START_EIP................."
         self._vpn.start(eipconfig=eip_config,
                         providerconfig=provider_config,
                         socket_host=host, socket_port=port)
@@ -387,8 +388,12 @@ class EIP(object):
         except Exception as e:
             logger.error("Unexpected problem: {0!r}".format(e))
         else:
+            logger.debug('EIP: no errors')
             # TODO: are we connected here?
-            signaler.signal(signaler.EIP_CONNECTED)
+            # kali -- no, we are not! CONNECTED should be passed only
+            # by the vpn observer. Currently handled by the state updater
+            # in eip_status
+            #signaler.signal(signaler.EIP_CONNECTED)
 
     def _do_stop(self, shutdown=False, restart=False):
         """

@@ -238,7 +238,7 @@ class EIPStatusWidget(QtGui.QWidget):
     def eip_pre_up(self):
         """
         Triggered when the app activates eip.
-        Hides the status box and disables the start/stop button.
+        Disables the start/stop button.
         """
         self.set_startstop_enabled(False)
 
@@ -248,7 +248,8 @@ class EIPStatusWidget(QtGui.QWidget):
         Triggered when a default provider_config has not been found.
         Disables the start button and adds instructions to the user.
         """
-        #logger.debug('Hiding EIP start button')
+        print "NO DEFAULT PROVIDER... hiding button -------------------------"
+        logger.debug('Hiding EIP start button')
         # you might be tempted to change this for a .setEnabled(False).
         # it won't work. it's under the claws of the state machine.
         # probably the best thing would be to make a conditional
@@ -326,6 +327,7 @@ class EIPStatusWidget(QtGui.QWidget):
         Sets the state of the widget to how it should look after EIP
         has started
         """
+        print "EIP STARTED ********************"
         self.ui.btnEipStartStop.setText(self.tr("Turn OFF"))
         self.ui.btnEipStartStop.disconnect(self)
         self.ui.btnEipStartStop.clicked.connect(
@@ -337,6 +339,7 @@ class EIPStatusWidget(QtGui.QWidget):
         Sets the state of the widget to how it should look after EIP
         has stopped
         """
+        print "EIP STOPPED ********************"
         # XXX should connect this to EIPConnection.disconnected_signal
         self._reset_traffic_rates()
         # XXX disable -----------------------------
@@ -349,6 +352,19 @@ class EIPStatusWidget(QtGui.QWidget):
         self.ui.lblEIPMessage.setText(
             self.tr("Traffic is being routed in the clear"))
         self.ui.lblEIPStatus.show()
+
+    def send_disconnect_signal(self):
+        """
+        Send disconnecting signal.
+        """
+        print "EIP_STATUS: send disconnecting signal =========================="
+        #QtCore.QTimer.singleShot(
+            #0, self.eipconnection.qtsigs.do_disconnect_signal.emit)
+        self.eipconnection.qtsigs.do_disconnect_signal.emit()
+
+    #def send_aborted_signal(self):
+        #QtCore.QTimer.singleShot(
+            #0, self.eipconnection.qtsigs.connection_aborted_signal.emit)
 
     @QtCore.Slot(dict)
     def update_vpn_status(self, data=None):
@@ -407,6 +423,7 @@ class EIPStatusWidget(QtGui.QWidget):
             self.ui.lblEIPStatus.hide()
 
             # XXX should be handled by the state machine too.
+            # --- is this currently being sent?
             self.eip_connection_connected.emit()
 
         # XXX should lookup vpn_state map in EIPConnection
@@ -423,8 +440,7 @@ class EIPStatusWidget(QtGui.QWidget):
         elif vpn_state == "ALREADYRUNNING":
             # Put the following calls in Qt's event queue, otherwise
             # the UI won't update properly
-            QtCore.QTimer.singleShot(
-                0, self.eipconnection.qtsigs.do_disconnect_signal)
+            self.send_disconnect_signal()
             msg = self.tr("Unable to start VPN, it's already running.")
             QtCore.QTimer.singleShot(0, partial(self.set_eip_status, msg))
         else:
