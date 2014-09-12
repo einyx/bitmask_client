@@ -58,35 +58,39 @@ class IMAPController(object):
         """
         logger.debug('Starting imap service')
 
-        self.imap_service, self.imap_port, \
+        self.incoming_mail_processor, self.imap_listening_port, \
             self.imap_factory = imap.start_imap_service(
                 self._soledad,
                 self._keymanager,
                 userid=userid,
                 offline=offline)
 
-        if offline is False:
-            logger.debug("Starting loop")
-            self.imap_service.start_loop()
+        if not offline:
+            logger.debug("Starting Incoming Mail Loop")
+            self.incoming_mail_processor.start_fetching_loop()
 
     def stop_imap_service(self, cv):
         """
-        Stop IMAP service (fetcher, factory and port).
+        Stop IMAP service: incoming_mail_processor, factory and port.
 
         :param cv: A condition variable to which we can signal when imap
                    indeed stops.
         :type cv: threading.Condition
         """
-        if self.imap_service is not None:
-            # Stop the loop call in the fetcher
-            self.imap_service.stop()
-            self.imap_service = None
+        # TODO the logic for stopping the imap service should be
+        # delegated to leap.imap module.
+        incoming_service = self.incoming_mail_processor
+        if incoming_service is not None:
+            incoming_service.stop_fetching_loop()
+            incoming_service = None
 
             # Stop listening on the IMAP port
-            self.imap_port.stopListening()
+            self.imap_listening_port.stopListening()
 
             # Stop the protocol
             self.imap_factory.theAccount.closed = True
+            # XXX I think we should be able to solve the waiting problem with
+            # just defers -- kali.
             self.imap_factory.doStop(cv)
         else:
             # Release the condition variable so the caller doesn't have to wait
@@ -96,8 +100,10 @@ class IMAPController(object):
 
     def fetch_incoming_mail(self):
         """
-        Fetch incoming mail.
+        Fetch incoming mail. This normally happens in the
+        incoming_mail_processor loop, but we want to force a fetch when the
+        client connects.
         """
         if self.imap_service:
             logger.debug('Client connected, fetching mail...')
-            self.imap_service.fetch()
+            self.incoming_mail_processor.fetch()
