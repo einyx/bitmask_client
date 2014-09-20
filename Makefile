@@ -95,6 +95,9 @@ resource_graph:
 	./pkg/scripts/monitor_resource.zsh `pgrep bitmask` $(RESOURCE_TIME)
 	display bitmask-resources.png
 
+live_profiling:
+	@python -m profiling live-profile bitmask --debug
+
 get_wheels:
 	pip install --upgrade setuptools
 	pip install --upgrade pip
