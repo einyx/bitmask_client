@@ -141,8 +141,9 @@ class SRPRegister(QtCore.QObject):
             req = self._session.post(uri,
                                      data=user_data,
                                      timeout=SIGNUP_TIMEOUT,
-                                     verify=self._provider_config.
-                                     get_ca_cert_path())
+                                     verify=bytes(
+                                         self._provider_config.
+                                         get_ca_cert_path()))
 
         except requests.exceptions.RequestException as exc:
             logger.error(exc.message)
