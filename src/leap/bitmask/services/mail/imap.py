@@ -21,7 +21,9 @@ import logging
 import os
 import sys
 
+from leap.mail.constants import INBOX_NAME
 from leap.mail.imap.service import imap
+from leap.mail.incoming.service import IncomingMail
 from twisted.python import log
 
 logger = logging.getLogger(__name__)
@@ -70,3 +72,24 @@ def start_imap_service(*args, **kwargs):
         log.startLogging(sys.stdout)
 
     return imap.run_service(*args, **kwargs)
+
+
+def start_incoming_mail_service(keymanager, soledad, imap_factory, userid):
+    """
+    Initalizes and starts the incomming mail service.
+
+    :returns: a Deferred that will be fired with the IncomingMail instance
+    """
+    def setUpIncomingMail(inbox):
+        incoming_mail = IncomingMail(
+            keymanager,
+            soledad,
+            inbox,
+            userid)
+        incoming_mail.start_loop()
+        return incoming_mail
+
+    # XXX: do I really need to know here how to get a mailbox??
+    d = imap_factory.getMailbox(INBOX_NAME)
+    d.addCallback(setUpIncomingMail)
+    return d
