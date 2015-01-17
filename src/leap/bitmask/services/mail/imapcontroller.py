@@ -43,9 +43,12 @@ class IMAPController(object):
         self._soledad = soledad
         self._keymanager = keymanager
 
-        self.incoming_mail = None  # XXX: this should live in it's own controller
+        # XXX: this should live in its own controller
+        # or, better, just be managed by a composite Mail Service in
+        # leap.mail.
         self.imap_port = None
         self.imap_factory = None
+        self.incoming_mail_service = None
 
     def start_imap_service(self, userid, offline=False):
         """
@@ -62,17 +65,24 @@ class IMAPController(object):
             self._soledad,
             userid=userid)
 
-        def assign_incoming_mail(incoming_mail):
-            self.incoming_mail = incoming_mail
+        def start_incoming_service(incoming_mail):
+            d = incoming_mail.startService()
+            d.addCallback(lambda started: incoming_mail)
+            return d
+
+        def assign_incoming_service(incoming_mail):
+            self.incoming_mail_service = incoming_mail
+            return incoming_mail
 
         if offline is False:
-            logger.debug("Starting loop")
             d = imap.start_incoming_mail_service(
                 self._keymanager,
                 self._soledad,
                 self.imap_factory,
                 userid)
-            d.addCallback(assign_incoming_mail)
+            d.addCallback(start_incoming_service)
+            d.addCallback(assign_incoming_service)
+            d.addErrback(lambda f: logger.error(f.printTraceback()))
 
     def stop_imap_service(self):
         """
