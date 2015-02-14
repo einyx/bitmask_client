@@ -28,7 +28,6 @@ from sqlite3 import ProgrammingError as sqlite_ProgrammingError
 
 from u1db import errors as u1db_errors
 from twisted.internet import threads, defer
-import zope.proxy
 from zope.proxy import sameProxiedObjects
 from pysqlcipher.dbapi2 import ProgrammingError as sqlcipher_ProgrammingError
 
@@ -111,7 +110,6 @@ class SoledadBootstrapper(AbstractBootstrapper):
     MAX_INIT_RETRIES = 10
     MAX_SYNC_RETRIES = 10
     WAIT_MAX_SECONDS = 600
-    # WAIT_STEP_SECONDS = 1
     WAIT_STEP_SECONDS = 5
 
     def __init__(self, signaler=None):
@@ -131,8 +129,8 @@ class SoledadBootstrapper(AbstractBootstrapper):
 
         self._srpauth = None
 
-        self._soledad = zope.proxy.ProxyBase(None)
-        self._keymanager = zope.proxy.ProxyBase(None)
+        self._soledad = None
+        self._keymanager = None
 
     @property
     def keymanager(self):
@@ -291,44 +289,54 @@ class SoledadBootstrapper(AbstractBootstrapper):
                 uuid, secrets_path, local_db_path, cert_file, token)
 
         else:
-            # We assume online operation from here on.
-            # XXX split in subfunction
-            syncable = True
-            try:
-                self._do_soledad_init(uuid, secrets_path, local_db_path,
-                                      server_url, cert_file, token, syncable)
-            except SoledadInitError:
-                # re-raise the exceptions from try_init,
-                # we're currently handling the retries from the
-                # soledad-launcher in the gui.
-                raise
+            print "LOADING SOLEDAD ONLINE"
+            self._load_and_sync_soledad_online(
+                uuid, secrets_path, local_db_path, server_url, cert_file,
+                token)
 
-            leap_assert(not sameProxiedObjects(self._soledad, None),
-                        "Null soledad, error while initializing")
+    def _load_and_sync_soledad_online(self, uuid, secrets_path, local_db_path,
+                                      server_url, cert_file, token):
+        syncable = True
+        try:
+            self._do_soledad_init(uuid, secrets_path, local_db_path,
+                                  server_url, cert_file, token, syncable)
+        except SoledadInitError:
+            # re-raise the exceptions from try_init,
+            # we're currently handling the retries from the
+            # soledad-launcher in the gui.
+            raise
 
-            address = make_address(
-                self._user, self._provider_config.get_domain())
+        leap_assert(not sameProxiedObjects(self._soledad, None),
+                    "Null soledad, error while initializing")
 
-            def key_not_found(failure):
-                if failure.check(KeyNotFound):
-                    logger.debug("Key not found. Generating key for %s" %
-                                 (address,))
-                    self._do_soledad_sync()
-                else:
-                    return failure
+        address = make_address(
+            self._user, self._provider_config.get_domain())
 
-            d = self._init_keymanager(address, token)
-            d.addCallback(
-                lambda _: self._keymanager.get_key(
-                    address, openpgp.OpenPGPKey,
-                    private=True, fetch_remote=False))
-            d.addCallbacks(
-                # XXX WTF --- FIXME remove this call to thread, soledad already
-                # does the sync in its own threadpool. -- kali
-                lambda _: threads.deferToThread(self._do_soledad_sync),
-                key_not_found)
-            d.addErrback(self._soledad_sync_errback)
-            return d
+        def key_not_found(failure):
+            if failure.check(KeyNotFound):
+                logger.debug("Key not found. Generating key for %s" %
+                             (address,))
+                self._do_soledad_sync()
+            else:
+                return failure
+
+        def sync_soledad(ignored):
+            # XXX this should eventually return a deferred,
+            # but it's not.
+            self._do_soledad_sync()
+
+        d = self._init_keymanager(address, token)
+        d.addCallback(
+            lambda _: self._keymanager.get_key(
+                address, openpgp.OpenPGPKey,
+                private=True, fetch_remote=False))
+        d.addCallbacks(
+            sync_soledad, key_not_found)
+        d.addErrback(self._soledad_sync_errback)
+
+        # XXX FIXME is this wasn't thrown into a threadpool blindly, we
+        # could return the deferred here.
+        # return d
 
     def _load_soledad_nosync(self, uuid, secrets_path, local_db_path,
                              cert_file, token):
@@ -377,6 +385,9 @@ class SoledadBootstrapper(AbstractBootstrapper):
                 logger.debug("Trying to sync soledad....")
                 self._try_soledad_sync()
                 while self.soledad.syncing:
+                    # XXX FIXME --- remove this sleep now that soledad returns
+                    # deferred. Should move the ability to retry to soledad
+                    # itself.
                     time.sleep(step)
                     wait += step
                     if wait >= max_wait:
